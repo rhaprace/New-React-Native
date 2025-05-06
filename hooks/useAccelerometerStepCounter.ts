@@ -149,6 +149,8 @@ export const useAccelerometerStepCounter = (
 
   // Update today's step count
   const updateTodaySteps = (steps: number) => {
+    console.log(`updateTodaySteps called with steps: ${steps}`);
+
     const todayString = getTodayString();
 
     // Check if today's entry exists in history
@@ -168,12 +170,17 @@ export const useAccelerometerStepCounter = (
       ];
     }
 
-    // Update state
+    // Update state immediately - but don't update currentSteps here
+    // This avoids a circular update that could reset the counter
     setTodaySteps(steps);
     setHistoryData(updatedHistory);
 
     // Save to AsyncStorage immediately
-    saveStepData(updatedHistory);
+    try {
+      saveStepData(updatedHistory);
+    } catch (error) {
+      console.error("Error saving step data:", error);
+    }
 
     console.log(`Updated today's steps to ${steps}`);
   };
@@ -306,10 +313,35 @@ export const useAccelerometerStepCounter = (
     );
 
     if (isStep) {
-      // Use immediate state update for faster response
-      const newSteps = currentSteps + 1;
-      setCurrentSteps(newSteps);
-      updateTodaySteps(newSteps);
+      // Use functional state update to ensure we're using the latest state value
+      // This is critical to avoid race conditions with state updates
+      setCurrentSteps((prevSteps) => {
+        const newSteps = prevSteps + 1;
+        console.log(`Incrementing steps from ${prevSteps} to ${newSteps}`);
+
+        // Update today's steps with the new count
+        // We need to call this inside the callback to ensure we use the updated value
+        updateTodaySteps(newSteps);
+
+        // Store the time between steps for anti-cheating analysis
+        const now = Date.now();
+        if (lastStepTime.current > 0) {
+          const stepInterval = now - lastStepTime.current;
+          // Only store reasonable step intervals (between 0.3 and 2 seconds)
+          if (stepInterval > 300 && stepInterval < 2000) {
+            stepFrequency.current.push(stepInterval);
+            // Keep only the last 10 intervals
+            if (stepFrequency.current.length > 10) {
+              stepFrequency.current.shift();
+            }
+          }
+        }
+
+        return newSteps;
+      });
+
+      // Log the step detection for debugging
+      console.log(`Step detected! Current count in state: ${currentSteps}`);
 
       // Detailed logging is now handled in the detectStepWithPeakAnalysis function
       return true;
@@ -367,20 +399,22 @@ export const useAccelerometerStepCounter = (
 
     // Only count as a step if:
     // 1. We detected a peak or significant movement
-    // 2. The magnitude is above our threshold (reduced for better sensitivity)
+    // 2. The magnitude is above our threshold (increased for stricter detection)
     // 3. Enough time has passed since the last step
-    // 4. The pattern resembles walking (made optional for better detection)
+    // 4. The pattern resembles walking (now required for most cases)
     if (
       (isPeak || hasSignificantMovement) &&
-      currentValue > threshold * 0.7 && // Further lowered threshold for better sensitivity
+      currentValue > threshold * 0.9 && // Increased threshold for stricter detection
       timestamp - lastStepTime.current > adaptiveStepDelay.current
     ) {
-      // Check walking pattern, but make it optional if movement is very clear
+      // Check walking pattern - now required in most cases for anti-cheating
       const isWalking = isWalkingPattern();
       const isStrongSignal =
-        currentValue > threshold * 1.2 || magnitudeChange > threshold * 0.5;
+        currentValue > threshold * 1.5 && magnitudeChange > threshold * 0.7;
 
-      if (isWalking || isStrongSignal) {
+      // Anti-cheating: require walking pattern unless signal is very strong
+      // This makes it harder to cheat by just shaking the device
+      if (isWalking || (isStrongSignal && checkConsistentStepPattern())) {
         // Update step timing data
         const timeSinceLastStep = timestamp - lastStepTime.current;
         lastStepTime.current = timestamp;
@@ -405,6 +439,9 @@ export const useAccelerometerStepCounter = (
         console.log(
           `Step detected! Magnitude: ${currentValue.toFixed(2)}, Change: ${magnitudeChange.toFixed(2)}, Threshold: ${threshold.toFixed(2)}, Walking: ${isWalking}, Strong: ${isStrongSignal}`
         );
+
+        // Log the current step count for debugging
+        console.log(`Current step count before increment: ${currentSteps}`);
 
         return true;
       }
@@ -488,10 +525,10 @@ export const useAccelerometerStepCounter = (
     return squaredDiffs.reduce((a, b) => a + b, 0) / values.length;
   };
 
-  // Enhanced walking pattern detection with even more lenient thresholds
+  // Enhanced walking pattern detection with stricter thresholds for anti-cheating
   const isWalkingPattern = (): boolean => {
-    // Need enough data to analyze, but be very lenient with small data sets
-    if (accelerationMagnitude.current.length < 5) return true;
+    // Need enough data to analyze - require more data for better accuracy
+    if (accelerationMagnitude.current.length < 5) return false;
 
     // Calculate average and standard deviation
     const sum = accelerationMagnitude.current.reduce((a, b) => a + b, 0);
@@ -508,39 +545,39 @@ export const useAccelerometerStepCounter = (
     // Calculate normalized standard deviation (coefficient of variation)
     const normalizedStdDev = stdDev / avg;
 
-    // Check for rhythmic pattern using autocorrelation - but make it optional
-    // This makes the step detection work even with less rhythmic movements
+    // Check for rhythmic pattern using autocorrelation - required for most cases
     const hasRhythmicPattern = checkForRhythmicPattern();
 
-    // Adjust thresholds based on detected device position - with extremely lenient values
-    let minThreshold = 0.005; // Extremely low minimum threshold to catch more steps
-    let maxThreshold = 1.2; // Higher maximum threshold to be more inclusive
+    // Adjust thresholds based on detected device position - with stricter values
+    let minThreshold = 0.01; // Increased minimum threshold to prevent false positives
+    let maxThreshold = 1.0; // Lower maximum threshold to be more strict
 
     if (devicePosition.current === "pocket") {
-      minThreshold = 0.01;
-      maxThreshold = 1.2;
-    } else if (devicePosition.current === "hand") {
-      minThreshold = 0.005;
+      minThreshold = 0.02;
       maxThreshold = 1.0;
-    } else if (devicePosition.current === "bag") {
+    } else if (devicePosition.current === "hand") {
       minThreshold = 0.01;
-      maxThreshold = 1.1;
+      maxThreshold = 0.9;
+    } else if (devicePosition.current === "bag") {
+      minThreshold = 0.02;
+      maxThreshold = 1.0;
     }
 
     // If we have a very strong signal (high normalized std dev),
     // we'll count it as walking even without a rhythmic pattern
-    // Lowered from 0.2 to 0.15 for better sensitivity
-    const hasStrongSignal = normalizedStdDev > 0.15;
+    // Increased from 0.15 to 0.2 for stricter detection
+    const hasStrongSignal = normalizedStdDev > 0.2;
 
     // Check for consistent movement in any direction
     const hasConsistentMovement = checkForConsistentMovement();
 
     // Walking typically has a moderate standard deviation and rhythmic pattern
-    // But we're being extremely lenient to catch more steps
+    // Now requiring more conditions to be met for anti-cheating
     return (
       normalizedStdDev > minThreshold &&
       normalizedStdDev < maxThreshold &&
-      (hasRhythmicPattern || hasStrongSignal || hasConsistentMovement)
+      // Require rhythmic pattern OR (strong signal AND consistent movement)
+      (hasRhythmicPattern || (hasStrongSignal && hasConsistentMovement))
     );
   };
 
@@ -562,10 +599,35 @@ export const useAccelerometerStepCounter = (
     return xVariance > 0.1 || yVariance > 0.1 || zVariance > 0.1;
   };
 
-  // Enhanced rhythmic pattern detection with multiple lag values
+  // Anti-cheating: Check for consistent step pattern that resembles natural walking
+  const checkConsistentStepPattern = (): boolean => {
+    // Need enough data to analyze
+    if (stepFrequency.current.length < 3) return true;
+
+    // Calculate the average and standard deviation of step frequencies
+    const sum = stepFrequency.current.reduce((a, b) => a + b, 0);
+    const avg = sum / stepFrequency.current.length;
+
+    const squaredDiffs = stepFrequency.current.map((val) =>
+      Math.pow(val - avg, 2)
+    );
+    const variance =
+      squaredDiffs.reduce((a, b) => a + b, 0) / stepFrequency.current.length;
+    const stdDev = Math.sqrt(variance);
+
+    // Calculate coefficient of variation (normalized standard deviation)
+    const cv = stdDev / avg;
+
+    // Natural walking has a relatively consistent cadence
+    // If the variation is too high, it might be fake movement
+    // If it's too low, it might be a machine or programmatic simulation
+    return cv > 0.05 && cv < 0.4;
+  };
+
+  // Enhanced rhythmic pattern detection with multiple lag values - stricter for anti-cheating
   const checkForRhythmicPattern = (): boolean => {
     if (accelerationMagnitude.current.length < 10) {
-      return true; // Not enough data, assume it's valid
+      return false; // Not enough data, don't assume it's valid (anti-cheating)
     }
 
     // Calculate autocorrelation to detect periodicity
@@ -597,8 +659,9 @@ export const useAccelerometerStepCounter = (
       );
     }
 
-    // Lower threshold for positive autocorrelation to be more lenient
-    return maxAutocorrelation > 0.1; // Reduced from 0.2 to 0.1
+    // Increased threshold for positive autocorrelation to be more strict
+    // This requires a stronger rhythmic pattern to be detected
+    return maxAutocorrelation > 0.15; // Increased from 0.1 to 0.15 for anti-cheating
   };
 
   // Start the accelerometer and step detection with advanced algorithm
@@ -639,7 +702,11 @@ export const useAccelerometerStepCounter = (
       );
       const subscription = Accelerometer.addListener((acceleration) => {
         try {
+          // Call detectStep - no need to store the result since we handle updates in the function
           detectStep(acceleration);
+
+          // The detectStep function now handles the state updates properly
+          // with functional updates to avoid race conditions
         } catch (error) {
           console.error("Error in step detection:", error);
         }
@@ -956,6 +1023,20 @@ export const useAccelerometerStepCounter = (
       stopStepSimulation();
     };
   }, []);
+
+  // Add a useEffect to monitor step count changes
+  useEffect(() => {
+    console.log(
+      `Step count changed in useAccelerometerStepCounter: ${currentSteps}`
+    );
+  }, [currentSteps]);
+
+  // Add a useEffect to monitor todaySteps changes
+  useEffect(() => {
+    console.log(
+      `Today's steps changed in useAccelerometerStepCounter: ${todaySteps}`
+    );
+  }, [todaySteps]);
 
   // Calculate progress percentage
   const progress = goalSteps > 0 ? (todaySteps / goalSteps) * 100 : 0;
