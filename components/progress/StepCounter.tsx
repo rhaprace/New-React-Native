@@ -1,15 +1,11 @@
 /**
  * StepCounter Component
  *
- * This component displays a step counter that uses Health Connect as the primary
- * step tracking method with accelerometer as a fallback.
+ * This component displays a step counter that uses the device's accelerometer
+ * to track steps.
  *
- * The component has been refactored to remove unused code related to pedometer
- * and GoogleFit, simplifying the implementation to use only Health Connect with
- * accelerometer as a fallback.
- *
- * IMPORTANT: This component requires the react-native-health-connect module to be
- * properly linked. If you're seeing errors, run the fix-health-connect.js script.
+ * The component has been refactored to remove dependencies on Health Connect,
+ * simplifying the implementation to use only the accelerometer for step counting.
  */
 
 import React, { useState } from "react";
@@ -26,7 +22,7 @@ import { Ionicons } from "@expo/vector-icons";
 import SimpleCircularProgress from "./SimpleCircularProgress";
 import { Text, Card, Button } from "@/components/ui";
 import { COLORS, SLATE, SPACING } from "@/constants/theme";
-import { useHealthConnectStepCounter } from "@/hooks/useHealthConnectStepCounter";
+import { useAccelerometerStepCounter } from "@/hooks/useAccelerometerStepCounter";
 import { styles } from "@/styles/stepcounter.styles";
 
 interface StepCounterProps {
@@ -34,46 +30,8 @@ interface StepCounterProps {
 }
 
 const StepCounter: React.FC<StepCounterProps> = ({ defaultGoal = 10000 }) => {
-  // Add error handling for the hook
-  let hookResult;
-  try {
-    hookResult = useHealthConnectStepCounter(defaultGoal);
-  } catch (error) {
-    console.error("Error using health connect step counter:", error);
-    // Return a fallback UI if the hook fails
-    return (
-      <Card style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.titleContainer}>
-            <Ionicons name="footsteps" size={24} color={SLATE.slate_700} />
-            <Text variant="h5" weight="semibold" style={styles.title}>
-              Step Counter
-            </Text>
-          </View>
-        </View>
-        <View style={{ padding: 16, alignItems: "center" }}>
-          <Text
-            style={{
-              color: SLATE.slate_600,
-              textAlign: "center",
-              marginBottom: 8,
-            }}
-          >
-            Step tracking is currently unavailable.
-          </Text>
-          <Text
-            style={{
-              color: SLATE.slate_500,
-              textAlign: "center",
-              fontSize: 12,
-            }}
-          >
-            We're working to resolve this issue. Please check back later.
-          </Text>
-        </View>
-      </Card>
-    );
-  }
+  // Use the accelerometer-based step counter
+  const hookResult = useAccelerometerStepCounter(defaultGoal);
 
   const {
     permissionStatus,
@@ -104,6 +62,11 @@ const StepCounter: React.FC<StepCounterProps> = ({ defaultGoal = 10000 }) => {
       requestPermissions();
     }
   }, []);
+
+  // Add a useEffect to log step count changes for debugging
+  React.useEffect(() => {
+    console.log("StepCounter component - todaySteps updated:", todaySteps);
+  }, [todaySteps]);
 
   const handleSaveGoal = () => {
     const goal = parseInt(newGoal);
@@ -137,10 +100,11 @@ const StepCounter: React.FC<StepCounterProps> = ({ defaultGoal = 10000 }) => {
           Step Tracking
         </Text>
         <Text style={styles.permissionText}>
-          To track your steps, we need permission to access Health Connect data.
+          To track your steps, we need permission to access motion sensors.
         </Text>
         <Text style={[styles.permissionText, { marginBottom: SPACING.sm }]}>
-          This helps track your daily activity and fitness progress accurately.
+          This helps track your daily activity and fitness progress accurately
+          as you walk.
         </Text>
 
         {/* Show different buttons based on permission state */}
