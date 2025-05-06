@@ -26,7 +26,7 @@ git remote add origin $repoUrl
 
 # Step 6: Push to GitHub
 Write-Host "Pushing to GitHub..." -ForegroundColor Green
-git push -u origin master
+git push -u origin main
 
 Write-Host "Done! Your code has been uploaded to GitHub." -ForegroundColor Green
 Write-Host "Repository URL: $repoUrl" -ForegroundColor Green
