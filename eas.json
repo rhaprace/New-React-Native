@@ -1,0 +1,34 @@
+{
+  "cli": {
+    "version": ">= 5.9.1"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_CONVEX_URL": "your_development_convex_url",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "your_development_clerk_key",
+        "EXPO_PUBLIC_PAYMONGO_SECRET_KEY": "your_development_paymongo_key"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_CONVEX_URL": "your_staging_convex_url",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "your_staging_clerk_key",
+        "EXPO_PUBLIC_PAYMONGO_SECRET_KEY": "your_staging_paymongo_key"
+      }
+    },
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_CONVEX_URL": "your_production_convex_url",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "your_production_clerk_key",
+        "EXPO_PUBLIC_PAYMONGO_SECRET_KEY": "your_production_paymongo_key"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

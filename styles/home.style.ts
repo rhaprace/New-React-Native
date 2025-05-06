@@ -1,0 +1,355 @@
+import { StyleSheet, Dimensions } from "react-native";
+import { COLORS, SLATE } from "@/constants/theme";
+
+const { width } = Dimensions.get("window");
+
+export const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+  },
+  loadingIndicator: {
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: COLORS.primary,
+    fontWeight: "500",
+  },
+  header: {
+    backgroundColor: COLORS.primary,
+    paddingTop: 20,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    shadowColor: SLATE.slate_900,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  headerContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  welcomeText: {
+    fontSize: 16,
+    color: "rgba(255, 255, 255, 0.8)",
+  },
+  nameText: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: COLORS.white,
+    marginTop: 4,
+  },
+  profileButton: {
+    borderWidth: 2,
+    borderColor: COLORS.white,
+    borderRadius: 30,
+  },
+  profileImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 30,
+  },
+  calorieCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  cardTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: COLORS.black,
+    marginLeft: 8,
+  },
+  moreButton: {
+    padding: 4,
+  },
+  calorieContent: {
+    marginBottom: 16,
+  },
+  calorieNumbers: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  calorieGoal: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: COLORS.black,
+  },
+  calorieOperator: {
+    fontSize: 22,
+    fontWeight: "300",
+    color: COLORS.gray,
+    marginHorizontal: 8,
+  },
+  calorieConsumed: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: COLORS.primary,
+  },
+  calorieRemaining: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: COLORS.secondary,
+  },
+  calorieLabels: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  calorieLabel: {
+    fontSize: 14,
+    color: COLORS.gray,
+  },
+  progressContainer: {
+    height: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  progressBar: {
+    height: "100%",
+    backgroundColor: COLORS.primary,
+    borderRadius: 4,
+  },
+  goalReachedContainer: {
+    marginTop: 12,
+    padding: 8,
+    backgroundColor: `${COLORS.warning}15`,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.warning,
+    alignItems: "center",
+  },
+  goalExceededContainer: {
+    backgroundColor: `${COLORS.error}15`,
+    borderLeftColor: COLORS.error,
+  },
+  goalReachedText: {
+    textAlign: "center",
+  },
+  goalReachedSubtext: {
+    textAlign: "center",
+    marginTop: 4,
+  },
+  goalReachedNote: {
+    textAlign: "center",
+    marginTop: 8,
+    fontSize: 12,
+  },
+  goalResetContainer: {
+    marginTop: 12,
+    padding: 8,
+    backgroundColor: `${COLORS.success}15`,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.success,
+    alignItems: "center",
+  },
+  goalResetText: {
+    textAlign: "center",
+  },
+  macrosContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0, 0, 0, 0.05)",
+  },
+  macroItem: {
+    alignItems: "center",
+  },
+  macroValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: COLORS.primary,
+  },
+  macroLabel: {
+    fontSize: 14,
+    color: COLORS.gray,
+    marginTop: 4,
+  },
+  sectionContainer: {
+    backgroundColor: COLORS.white,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  sectionTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: COLORS.textPrimary,
+    marginLeft: 8,
+  },
+  addButton: {
+    backgroundColor: `${COLORS.primary}15`,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  addButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.primary,
+  },
+  mealItem: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  mealTypeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  mealTypeText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.primary,
+    marginLeft: 6,
+  },
+  mealContent: {
+    marginLeft: 24,
+  },
+  mealName: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: COLORS.black,
+    marginBottom: 8,
+  },
+  mealNutrition: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  nutritionPill: {
+    backgroundColor: "rgba(74, 222, 128, 0.1)",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+  },
+  nutritionPillText: {
+    fontSize: 12,
+    color: COLORS.primary,
+    fontWeight: "500",
+  },
+  emptyContainer: {
+    padding: 20,
+    alignItems: "center",
+  },
+  emptyText: {
+    color: COLORS.gray,
+    fontSize: 16,
+  },
+  workoutItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(0, 0, 0, 0.05)",
+  },
+  workoutIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  workoutContent: {
+    flex: 1,
+  },
+  workoutName: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: COLORS.black,
+    marginBottom: 4,
+  },
+  workoutDetails: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  workoutDetail: {
+    fontSize: 14,
+    color: COLORS.gray,
+    marginRight: 8,
+  },
+  workoutDate: {
+    fontSize: 14,
+    color: COLORS.primary,
+    fontWeight: "500",
+    marginLeft: "auto",
+  },
+  emptyStateContainer: {
+    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.surfaceAlt,
+    borderRadius: 12,
+    marginVertical: 8,
+  },
+  emptyStateText: {
+    textAlign: "center",
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+});
