@@ -48,7 +48,7 @@ export default function Login() {
 
         // If user creation failed (shouldn't happen based on the code)
         if (!newOrExistingUser) {
-          router.replace("/subscription/subscription");
+          router.replace("/subscription/plans");
           return;
         }
 
@@ -62,7 +62,7 @@ export default function Login() {
         if (isNewUser) {
           // New user - show subscription screen
           console.log("New user - redirecting to subscription screen");
-          router.replace("/subscription/subscription");
+          router.replace("/subscription/plans");
         } else if (status === "active" || status === "free_trial") {
           // Existing user with active subscription - go to profile
           console.log(
@@ -77,13 +77,13 @@ export default function Login() {
           console.log(
             "Existing user with inactive/expired subscription - redirecting to subscription screen"
           );
-          router.replace("/subscription/subscription");
+          router.replace("/subscription/plans");
         } else {
           // Fallback - show subscription screen
           console.log(
             "User with unknown status - redirecting to subscription screen"
           );
-          router.replace("/subscription/subscription");
+          router.replace("/subscription/plans");
         }
       } catch (error) {
         console.error("Error handling user auth:", error);
