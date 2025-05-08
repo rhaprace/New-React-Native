@@ -49,6 +49,11 @@ export default defineSchema({
     hasSeenSubscriptionPrompt: v.optional(v.boolean()),
     pendingPaymentSource: v.optional(v.string()),
     pendingPaymentTimestamp: v.optional(v.number()),
+    gcashNumber: v.optional(v.string()),
+    expoPushToken: v.optional(v.string()),
+    paymentMethodEntered: v.optional(v.boolean()),
+    promoStartDate: v.optional(v.string()),
+    promoMonthsLeft: v.optional(v.number()),
   })
     .index("by_clerkId", ["clerkId"])
     .index("by_subscription", ["subscription"])

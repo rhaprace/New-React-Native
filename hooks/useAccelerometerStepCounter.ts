@@ -14,6 +14,19 @@ const PEAK_THRESHOLD_INITIAL = 0.8; // Initial threshold for peak detection - lo
 const WINDOW_SIZE = 30; // Size of the sliding window for peak detection - increased for better pattern recognition
 const GRAVITY = 9.81; // Earth's gravity in m/s²
 
+const STRICT_STEP_THRESHOLD = 1.2; // Higher threshold for real steps
+const STRICT_STEP_MIN_DELAY = 300; // ms, minimum time between steps
+const STRICT_STEP_MAX_DELAY = 2000; // ms, max time between steps
+const STRICT_VARIANCE_MIN = 0.05; // Minimum variance for walking
+const STRICT_VARIANCE_MAX = 2.0; // Maximum variance for walking
+
+const ANTI_CHEAT_STEP_THRESHOLD = 1.05; // Lower than super strict, but not too low
+const ANTI_CHEAT_VARIANCE_MIN = 0.02;
+const ANTI_CHEAT_VARIANCE_MAX = 3.0;
+const ANTI_CHEAT_RHYTHM_STD = 350; // ms, allow more natural variation
+
+const SIMPLE_STEP_THRESHOLD = 1.02;
+
 interface StepData {
   date: string;
   steps: number;
@@ -350,13 +363,13 @@ export const useAccelerometerStepCounter = (
     return false;
   };
 
-  // Advanced peak detection algorithm for step counting - improved for continuous detection
+  // Balanced anti-cheat step detection
   const detectStepWithPeakAnalysis = (
-    magnitude: number, // Now using the magnitude parameter directly
+    magnitude: number,
     timestamp: number,
     threshold: number
   ): boolean => {
-    // Need enough data to analyze, but be more lenient
+    // Original permissive logic
     if (accelerationMagnitude.current.length < 3) {
       // Allow step detection with less data
       if (
@@ -365,86 +378,37 @@ export const useAccelerometerStepCounter = (
       ) {
         // Simple detection for initial steps
         lastStepTime.current = timestamp;
-        console.log(
-          `Initial step detected with magnitude: ${magnitude.toFixed(2)}`
-        );
         return true;
       }
       return false;
     }
 
-    // Get all magnitude values for better analysis
     const recentMagnitudes = accelerationMagnitude.current;
-
-    // Use the current magnitude directly instead of the middle of the window
-    // This makes the detection more responsive to real-time changes
     const currentValue = magnitude;
-
-    // Calculate the average of recent magnitudes for comparison
     const avgMagnitude =
       recentMagnitudes.reduce((sum, val) => sum + val, 0) /
       recentMagnitudes.length;
 
     // Check if we have a significant peak compared to the average
-    // This is more reliable than checking if it's a local maximum
-    // Reduced multiplier from 1.2 to 1.1 for better sensitivity
     const isPeak =
       currentValue > avgMagnitude * 1.1 && currentValue > threshold * 0.7;
 
     // Check for significant movement (acceleration change)
     const prevMagnitude = recentMagnitudes[recentMagnitudes.length - 2] || 0;
     const magnitudeChange = Math.abs(currentValue - prevMagnitude);
-    // Reduced threshold multiplier from 0.3 to 0.25 for better sensitivity
     const hasSignificantMovement = magnitudeChange > threshold * 0.25;
 
     // Only count as a step if:
     // 1. We detected a peak or significant movement
-    // 2. The magnitude is above our threshold (increased for stricter detection)
+    // 2. The magnitude is above our threshold
     // 3. Enough time has passed since the last step
-    // 4. The pattern resembles walking (now required for most cases)
     if (
       (isPeak || hasSignificantMovement) &&
-      currentValue > threshold * 0.9 && // Increased threshold for stricter detection
-      timestamp - lastStepTime.current > adaptiveStepDelay.current
+      currentValue > threshold * 0.9 &&
+      timestamp - lastStepTime.current > STEP_DELAY_MIN
     ) {
-      // Check walking pattern - now required in most cases for anti-cheating
-      const isWalking = isWalkingPattern();
-      const isStrongSignal =
-        currentValue > threshold * 1.5 && magnitudeChange > threshold * 0.7;
-
-      // Anti-cheating: require walking pattern unless signal is very strong
-      // This makes it harder to cheat by just shaking the device
-      if (isWalking || (isStrongSignal && checkConsistentStepPattern())) {
-        // Update step timing data
-        const timeSinceLastStep = timestamp - lastStepTime.current;
-        lastStepTime.current = timestamp;
-
-        // Update step frequency data for adaptive timing
-        stepFrequency.current.push(timeSinceLastStep);
-        if (stepFrequency.current.length > 5) {
-          stepFrequency.current.shift();
-
-          // Update adaptive step delay based on recent step frequency
-          // Use a more aggressive adjustment to capture more steps
-          const avgFrequency =
-            stepFrequency.current.reduce((a, b) => a + b, 0) /
-            stepFrequency.current.length;
-          adaptiveStepDelay.current = Math.max(
-            STEP_DELAY_MIN,
-            Math.min(avgFrequency * 0.4, STEP_DELAY_MAX) // More aggressive adjustment
-          );
-        }
-
-        // Log detailed information about the step detection
-        console.log(
-          `Step detected! Magnitude: ${currentValue.toFixed(2)}, Change: ${magnitudeChange.toFixed(2)}, Threshold: ${threshold.toFixed(2)}, Walking: ${isWalking}, Strong: ${isStrongSignal}`
-        );
-
-        // Log the current step count for debugging
-        console.log(`Current step count before increment: ${currentSteps}`);
-
-        return true;
-      }
+      lastStepTime.current = timestamp;
+      return true;
     }
 
     return false;

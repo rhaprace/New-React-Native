@@ -123,6 +123,22 @@ export const updateProfile = mutation({
   },
 });
 
+export const saveExpoPushToken = mutation({
+  args: {
+    clerkId: v.string(),
+    expoPushToken: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
+      .first();
+    if (!user) throw new Error("User not found");
+    await ctx.db.patch(user._id, { expoPushToken: args.expoPushToken });
+    return { success: true };
+  },
+});
+
 export async function getAuthenticatedUser(ctx: QueryCtx | MutationCtx) {
   const identity = await ctx.auth.getUserIdentity();
 
