@@ -80,7 +80,11 @@ const TodaysExercises: React.FC<TodaysExercisesProps> = ({
         // Close the timer modal after completion
         setTimeout(() => {
           closeTimer();
-        }, 1000);
+          // Add an additional refresh after closing the timer
+          if (onRefresh) {
+            onRefresh();
+          }
+        }, 2000);
       }
     }
 
@@ -130,6 +134,8 @@ const TodaysExercises: React.FC<TodaysExercisesProps> = ({
     if (!userId) return;
 
     try {
+      // When an exercise is completed, mark it as completed in the recentWorkouts table
+      // This will cause it to be filtered out from the Today's Exercises list
       await upsertExercise({
         userId,
         name: exercise.name,
@@ -138,8 +144,16 @@ const TodaysExercises: React.FC<TodaysExercisesProps> = ({
         caloriesBurned: exercise.caloriesBurned,
         day: exercise.day,
         date: exercise.date,
-        isCompleted: forceComplete ? true : !exercise.isCompleted,
+        isCompleted: true, // Always mark as completed
       });
+
+      // Add a longer delay to ensure the database has time to update
+      setTimeout(() => {
+        // Refresh the exercises list after completing an exercise
+        if (onRefresh) {
+          onRefresh();
+        }
+      }, 1000);
     } catch (error) {
       console.error("Error updating exercise:", error);
       alert("Failed to update exercise. Please try again.");

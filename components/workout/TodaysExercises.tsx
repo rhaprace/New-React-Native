@@ -131,8 +131,15 @@ const TodaysExercises: React.FC<TodaysExercisesProps> = ({
         caloriesBurned: exercise.caloriesBurned,
         day: exercise.day,
         date: exercise.date,
-        isCompleted: forceComplete ? true : !exercise.isCompleted,
+        isCompleted: true, // Always mark as completed
       });
+
+      // Notify parent to refresh the exercise list
+      if (onAddExercise) {
+        setTimeout(() => {
+          onAddExercise();
+        }, 1000);
+      }
     } catch (error) {
       console.error("Error updating exercise:", error);
       alert("Failed to update exercise. Please try again.");

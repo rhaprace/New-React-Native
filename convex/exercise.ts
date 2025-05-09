@@ -9,15 +9,74 @@ export const getExercisesByDate = query({
   handler: async (ctx, args) => {
     const { userId, date, includeCompleted = false } = args;
 
-    let query = ctx.db
+    // Get exercises from the exercise table (seeded exercises)
+    let exerciseQuery = ctx.db
       .query("exercise")
       .withIndex("by_user_day_date", (q) => q.eq("userId", userId))
       .filter((q) => q.eq(q.field("date"), date));
+
     if (!includeCompleted) {
-      query = query.filter((q) => q.eq(q.field("isCompleted"), false));
+      // Make sure to filter out completed exercises
+      exerciseQuery = exerciseQuery.filter((q) =>
+        q.eq(q.field("isCompleted"), false)
+      );
     }
 
-    return await query.collect();
+    const exercisesFromExerciseTable = await exerciseQuery.collect();
+
+    // Get exercises from the recentWorkouts table for the same date
+    // This includes both custom exercises and completed seeded exercises
+    let recentWorkoutsQuery = ctx.db
+      .query("recentWorkouts")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .filter((q) => q.eq(q.field("date"), date));
+
+    // If we're not including completed exercises, filter them out
+    if (!includeCompleted) {
+      recentWorkoutsQuery = recentWorkoutsQuery.filter((q) =>
+        // Filter by isCompleted field - only show exercises that are explicitly NOT completed
+        q.eq(q.field("isCompleted"), false)
+      );
+    }
+
+    // Get exercises from recentWorkouts table
+    const exercisesFromRecentWorkouts = await recentWorkoutsQuery.collect();
+
+    // Convert recentWorkouts to the same format as exercises
+    const formattedRecentWorkouts = exercisesFromRecentWorkouts.map(
+      (workout) => ({
+        _id: workout._id,
+        userId: workout.userId,
+        name: workout.name,
+        type: workout.type,
+        duration: workout.duration,
+        caloriesBurned: workout.caloriesBurned,
+        day: workout.day,
+        date: workout.date,
+        // Use the isCompleted flag from the workout, defaulting to false if it doesn't exist
+        isCompleted: workout.isCompleted ?? false,
+        _creationTime: workout._creationTime,
+        source: "recentWorkouts", // Add source for debugging
+      })
+    );
+
+    // Add source to exercise table entries for debugging
+    const formattedExercises = exercisesFromExerciseTable.map((exercise) => ({
+      ...exercise,
+      source: "exercise",
+    }));
+
+    // Combine both lists, but avoid duplicates by name
+    // If an exercise exists in both tables, prioritize the one from the exercise table
+    const exerciseNames = new Set(formattedExercises.map((e) => e.name));
+
+    // Filter out any recentWorkouts that have the same name as exercises in the exercise table
+    const uniqueRecentWorkouts = formattedRecentWorkouts.filter(
+      (workout) => !exerciseNames.has(workout.name)
+    );
+
+    // Return the combined list
+    return [...formattedExercises, ...uniqueRecentWorkouts];
   },
 });
 export const getRecentExercises = query({
@@ -170,12 +229,70 @@ export const searchExercisesByName = query({
     let allExercises = [];
     if (userId) {
       // Get all exercises for this user (both completed and uncompleted)
-      allExercises = await ctx.db
+      const exercisesFromExerciseTable = await ctx.db
         .query("exercise")
         .withIndex("by_user_day_date", (q) => q.eq("userId", userId))
         .collect();
+
+      // Also get exercises from recentWorkouts table
+      const exercisesFromRecentWorkouts = await ctx.db
+        .query("recentWorkouts")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .collect();
+
+      // Convert recentWorkouts to the same format as exercises
+      const formattedRecentWorkouts = exercisesFromRecentWorkouts.map(
+        (workout) => ({
+          _id: workout._id,
+          userId: workout.userId,
+          name: workout.name,
+          type: workout.type,
+          duration: workout.duration,
+          caloriesBurned: workout.caloriesBurned,
+          day: workout.day,
+          date: workout.date,
+          isCompleted: workout.isCompleted ?? false, // Use the existing isCompleted flag
+          _creationTime: workout._creationTime,
+          source: "recentWorkouts", // Add source for debugging
+        })
+      );
+
+      // Combine both lists
+      allExercises = [
+        ...exercisesFromExerciseTable,
+        ...formattedRecentWorkouts,
+      ];
     } else {
-      allExercises = await ctx.db.query("exercise").collect();
+      // Get exercises from both tables
+      const exercisesFromExerciseTable = await ctx.db
+        .query("exercise")
+        .collect();
+      const exercisesFromRecentWorkouts = await ctx.db
+        .query("recentWorkouts")
+        .collect();
+
+      // Convert recentWorkouts to the same format as exercises
+      const formattedRecentWorkouts = exercisesFromRecentWorkouts.map(
+        (workout) => ({
+          _id: workout._id,
+          userId: workout.userId,
+          name: workout.name,
+          type: workout.type,
+          duration: workout.duration,
+          caloriesBurned: workout.caloriesBurned,
+          day: workout.day,
+          date: workout.date,
+          isCompleted: workout.isCompleted ?? false, // Use the existing isCompleted flag
+          _creationTime: workout._creationTime,
+          source: "recentWorkouts", // Add source for debugging
+        })
+      );
+
+      // Combine both lists
+      allExercises = [
+        ...exercisesFromExerciseTable,
+        ...formattedRecentWorkouts,
+      ];
     }
 
     // Create a map to store unique exercises by name
@@ -260,7 +377,9 @@ export const resetCompletedExercises = mutation({
   },
   handler: async (ctx, args) => {
     const { userId, previousDate, newDate } = args;
-    const completedExercises = await ctx.db
+
+    // Get completed exercises from both tables
+    const completedExercisesFromExerciseTable = await ctx.db
       .query("exercise")
       .withIndex("by_user_day_date", (q) => q.eq("userId", userId))
       .filter((q) =>
@@ -270,14 +389,24 @@ export const resetCompletedExercises = mutation({
         )
       )
       .collect();
-    const newExerciseIds = [];
 
-    for (const exercise of completedExercises) {
-      const newDay = new Date(newDate).toLocaleDateString("en-US", {
-        weekday: "long",
-      });
+    // Get exercises from recentWorkouts for the same date
+    const completedExercisesFromRecentWorkouts = await ctx.db
+      .query("recentWorkouts")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .filter((q) => q.eq(q.field("date"), previousDate))
+      .collect();
 
-      const newExerciseId = await ctx.db.insert("exercise", {
+    const newDay = new Date(newDate).toLocaleDateString("en-US", {
+      weekday: "long",
+    });
+
+    const newWorkoutIds = [];
+
+    // Process exercises from the exercise table - only if they're seeded exercises
+    for (const exercise of completedExercisesFromExerciseTable) {
+      // Add to recentWorkouts table instead of exercise table
+      const newWorkoutId = await ctx.db.insert("recentWorkouts", {
         userId,
         name: exercise.name,
         type: exercise.type,
@@ -285,16 +414,35 @@ export const resetCompletedExercises = mutation({
         caloriesBurned: exercise.caloriesBurned,
         day: newDay,
         date: newDate,
-        isCompleted: false,
+        lastUsed: new Date().toISOString(),
+        isCompleted: false, // Mark as not completed so it shows up in Today's Exercises
       });
 
-      newExerciseIds.push(newExerciseId);
+      newWorkoutIds.push(newWorkoutId);
+    }
+
+    // Process exercises from the recentWorkouts table
+    for (const workout of completedExercisesFromRecentWorkouts) {
+      // Add to recentWorkouts table
+      const newWorkoutId = await ctx.db.insert("recentWorkouts", {
+        userId,
+        name: workout.name,
+        type: workout.type,
+        duration: workout.duration,
+        caloriesBurned: workout.caloriesBurned,
+        day: newDay,
+        date: newDate,
+        lastUsed: new Date().toISOString(),
+        isCompleted: false, // Mark as not completed so it shows up in Today's Exercises
+      });
+
+      newWorkoutIds.push(newWorkoutId);
     }
 
     return {
       success: true,
-      message: `Reset ${newExerciseIds.length} exercises for the new day`,
-      exerciseIds: newExerciseIds,
+      message: `Reset ${newWorkoutIds.length} exercises for the new day`,
+      workoutIds: newWorkoutIds,
     };
   },
 });
