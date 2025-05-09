@@ -320,8 +320,16 @@ export const useMealPlanner = (userId: any, user: any) => {
         // Normalize the meal type for consistent comparison
         const normalizedMealType = meal.mealType.toLowerCase().trim();
 
-        // Check if the meal already exists in today's food before adding it
-        // Use a more robust check that normalizes strings for comparison
+        // Generate a unique identifier for this meal to prevent exact duplicates
+        // This allows multiple meals of the same type (e.g., multiple breakfast items)
+        // but prevents the exact same meal from being added twice
+        const mealIdentifier = `${meal.name.toLowerCase().trim()}_${normalizedMealType}_${currentDate}`;
+
+        console.log(
+          `Checking for duplicate meal with identifier: ${mealIdentifier}`
+        );
+
+        // Check if the exact same meal already exists in today's food before adding it
         const existingMeals = allMeals?.filter((existingMeal) => {
           const existingMealType = existingMeal.mealType.toLowerCase().trim();
           const nameMatches =
@@ -330,6 +338,7 @@ export const useMealPlanner = (userId: any, user: any) => {
           const dateMatches = existingMeal.date === currentDate;
           const typeMatches = existingMealType === normalizedMealType;
 
+          // Only consider it a duplicate if it's the exact same meal on the same day
           return dateMatches && nameMatches && typeMatches;
         });
 
@@ -387,6 +396,9 @@ export const useMealPlanner = (userId: any, user: any) => {
         // Trigger a refresh to update the meal plan with the latest data
         // But don't refresh the current view to avoid duplication
         // We only want to add to today's food, not to the current meal plan
+
+        // Force a refresh of the allMeals data to ensure we have the latest meals
+        setRefreshTrigger((prev) => prev + 1);
       } catch (error) {
         console.error("Error adding meal to today's food:", error);
         Alert.alert(

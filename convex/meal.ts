@@ -3,31 +3,31 @@ import { v } from "convex/values";
 
 // Helper function for consistent day formatting
 function formatDayConsistently(day: string): string {
-  if (!day) return '';
+  if (!day) return "";
 
   // Normalize the day name by removing any extra spaces and converting to lowercase
   const normalizedDay = day.trim().toLowerCase();
 
   // Map of possible day variations to standard format
   const dayMap: Record<string, string> = {
-    'mon': 'Monday',
-    'monday': 'Monday',
-    'tue': 'Tuesday',
-    'tues': 'Tuesday',
-    'tuesday': 'Tuesday',
-    'wed': 'Wednesday',
-    'weds': 'Wednesday',
-    'wednesday': 'Wednesday',
-    'thu': 'Thursday',
-    'thur': 'Thursday',
-    'thurs': 'Thursday',
-    'thursday': 'Thursday',
-    'fri': 'Friday',
-    'friday': 'Friday',
-    'sat': 'Saturday',
-    'saturday': 'Saturday',
-    'sun': 'Sunday',
-    'sunday': 'Sunday',
+    mon: "Monday",
+    monday: "Monday",
+    tue: "Tuesday",
+    tues: "Tuesday",
+    tuesday: "Tuesday",
+    wed: "Wednesday",
+    weds: "Wednesday",
+    wednesday: "Wednesday",
+    thu: "Thursday",
+    thur: "Thursday",
+    thurs: "Thursday",
+    thursday: "Thursday",
+    fri: "Friday",
+    friday: "Friday",
+    sat: "Saturday",
+    saturday: "Saturday",
+    sun: "Sunday",
+    sunday: "Sunday",
   };
 
   // Check if the normalized day is in our map
@@ -40,24 +40,83 @@ function formatDayConsistently(day: string): string {
 }
 
 // Helper functions to reduce code duplication
-async function findExistingMeal(ctx: any, userId: any, date: string, name: string, mealType: string) {
-  return await ctx.db
+async function findExistingMeal(
+  ctx: any,
+  userId: any,
+  date: string,
+  name: string,
+  mealType: string
+) {
+  // Normalize the meal name and type for consistent comparison
+  const normalizedName = name.trim();
+  const normalizedMealType = mealType.trim().toLowerCase();
+
+  console.log(
+    `Searching for existing meal: ${normalizedName}, type: ${normalizedMealType}, date: ${date}`
+  );
+
+  // First, get all meals for this user and date
+  const meals = await ctx.db
     .query("meal")
-    .withIndex("by_user_date", (q: any) => q.eq("userId", userId).eq("date", date))
-    .filter((q: any) => q.eq(q.field("name"), name) && q.eq(q.field("mealType"), mealType))
-    .first();
+    .withIndex("by_user_date", (q: any) =>
+      q.eq("userId", userId).eq("date", date)
+    )
+    .collect();
+
+  // Then filter for exact matches on name and meal type
+  // This is more precise than the database filter and allows for case-insensitive comparison
+  const exactMatch = meals.find(
+    (meal: any) =>
+      meal.name.trim().toLowerCase() === normalizedName.toLowerCase() &&
+      meal.mealType.trim().toLowerCase() === normalizedMealType
+  );
+
+  if (exactMatch) {
+    console.log(
+      `Found exact match for meal: ${normalizedName}, type: ${normalizedMealType}`
+    );
+  }
+
+  return exactMatch;
 }
 
-async function findExistingAddedMeal(ctx: any, userId: any, date: string, mealName: string, mealType: string) {
-  return await ctx.db
+async function findExistingAddedMeal(
+  ctx: any,
+  userId: any,
+  date: string,
+  mealName: string,
+  mealType: string
+) {
+  // Normalize the meal name and type for consistent comparison
+  const normalizedName = mealName.trim();
+  const normalizedMealType = mealType.trim().toLowerCase();
+
+  console.log(
+    `Searching for existing added meal: ${normalizedName}, type: ${normalizedMealType}, date: ${date}`
+  );
+
+  // First, get all added meals for this user
+  const meals = await ctx.db
     .query("addedMeals")
     .withIndex("by_user", (q: any) => q.eq("userId", userId))
-    .filter((q: any) =>
-      q.eq(q.field("mealName"), mealName) &&
-      q.eq(q.field("mealType"), mealType) &&
-      q.eq(q.field("date"), date)
-    )
-    .first();
+    .collect();
+
+  // Then filter for exact matches on name, meal type, and date
+  // This is more precise than the database filter and allows for case-insensitive comparison
+  const exactMatch = meals.find(
+    (meal: any) =>
+      meal.mealName.trim().toLowerCase() === normalizedName.toLowerCase() &&
+      meal.mealType.trim().toLowerCase() === normalizedMealType &&
+      meal.date === date
+  );
+
+  if (exactMatch) {
+    console.log(
+      `Found exact match for added meal: ${normalizedName}, type: ${normalizedMealType}`
+    );
+  }
+
+  return exactMatch;
 }
 
 // Create a new meal
@@ -71,22 +130,37 @@ export const createMeal = mutation({
     fat: v.number(),
     date: v.string(),
     day: v.string(),
-    mealType: v.string()
+    mealType: v.string(),
   },
   handler: async (ctx, args) => {
-    const existingMeal = await findExistingMeal(ctx, args.userId, args.date, args.name, args.mealType);
+    // Check for exact duplicates (same meal, same type, same date)
+    const existingMeal = await findExistingMeal(
+      ctx,
+      args.userId,
+      args.date,
+      args.name,
+      args.mealType
+    );
 
+    // If we found an exact duplicate, return it
     if (existingMeal) {
+      console.log(
+        `Found duplicate meal: ${args.name} for ${args.date}, ${args.mealType}`
+      );
       return { status: "exists", mealId: existingMeal._id, duplicate: true };
     }
 
     // Ensure day is properly formatted using our consistent helper
     const formattedDay = formatDayConsistently(args.day);
 
+    console.log(
+      `Creating new meal: ${args.name} for ${args.date}, ${args.mealType}`
+    );
+
     // Create a new meal with the formatted day
     const mealId = await ctx.db.insert("meal", {
       ...args,
-      day: formattedDay
+      day: formattedDay,
     });
 
     return { status: "created", mealId, duplicate: false };
@@ -103,19 +177,34 @@ export const logAddedMeal = mutation({
     date: v.string(),
   },
   handler: async (ctx, args) => {
-    const existingMeal = await findExistingAddedMeal(ctx, args.userId, args.date, args.mealName, args.mealType);
+    // Check for exact duplicates in the addedMeals table
+    const existingMeal = await findExistingAddedMeal(
+      ctx,
+      args.userId,
+      args.date,
+      args.mealName,
+      args.mealType
+    );
 
+    // If we found an exact duplicate, return it
     if (existingMeal) {
+      console.log(
+        `Found duplicate added meal: ${args.mealName} for ${args.date}, ${args.mealType}`
+      );
       return { success: true, mealLogId: existingMeal._id, duplicate: true };
     }
 
     // Ensure day is properly formatted using our consistent helper
     const formattedDay = formatDayConsistently(args.day);
 
+    console.log(
+      `Logging new added meal: ${args.mealName} for ${args.date}, ${args.mealType}`
+    );
+
     // Create a new meal log with the formatted day
     const mealLogId = await ctx.db.insert("addedMeals", {
       ...args,
-      day: formattedDay
+      day: formattedDay,
     });
 
     return { success: true, mealLogId, duplicate: false };
@@ -142,12 +231,26 @@ export const saveRumbleFoodRecommendation = mutation({
     const mealNameWithLabel = `${args.name} (Rumble Food)`;
 
     // Check for existing entries
-    const existingMeal = await findExistingAddedMeal(ctx, args.userId, args.date, mealNameWithLabel, mealTypeToUse);
-    const existingMealEntry = await findExistingMeal(ctx, args.userId, args.date, args.name, mealTypeToUse);
+    const existingMeal = await findExistingAddedMeal(
+      ctx,
+      args.userId,
+      args.date,
+      mealNameWithLabel,
+      mealTypeToUse
+    );
+    const existingMealEntry = await findExistingMeal(
+      ctx,
+      args.userId,
+      args.date,
+      args.name,
+      mealTypeToUse
+    );
 
     // Ensure day is properly formatted using our consistent helper
     const formattedDay = formatDayConsistently(args.day);
-    console.log(`Saving recommendation for day: ${args.day} -> formatted as: ${formattedDay}`);
+    console.log(
+      `Saving recommendation for day: ${args.day} -> formatted as: ${formattedDay}`
+    );
 
     // Insert or use existing meal log
     const mealLogId = existingMeal
@@ -179,7 +282,7 @@ export const saveRumbleFoodRecommendation = mutation({
       success: true,
       mealLogId,
       mealId,
-      duplicate: existingMeal !== null || existingMealEntry !== null
+      duplicate: existingMeal !== null || existingMealEntry !== null,
     };
   },
 });
@@ -233,7 +336,9 @@ export const getMealsByDate = query({
   handler: async (ctx, args) => {
     return await ctx.db
       .query("meal")
-      .withIndex("by_user_date", (q) => q.eq("userId", args.userId).eq("date", args.date))
+      .withIndex("by_user_date", (q) =>
+        q.eq("userId", args.userId).eq("date", args.date)
+      )
       .collect();
   },
 });
@@ -250,7 +355,7 @@ export const getAllMeals = query({
       .collect();
 
     // Standardize day formatting for all meals
-    const formattedMeals = meals.map(meal => {
+    const formattedMeals = meals.map((meal) => {
       // Ensure day is properly formatted using our consistent helper
       if (meal.day) {
         const formattedDay = formatDayConsistently(meal.day);
@@ -260,8 +365,10 @@ export const getAllMeals = query({
     });
 
     // Log the number of meals found for each day to help with debugging
-    const mealsByDay = formattedMeals.reduce<Record<string, typeof formattedMeals>>((acc, meal) => {
-      const day = meal.day || '';
+    const mealsByDay = formattedMeals.reduce<
+      Record<string, typeof formattedMeals>
+    >((acc, meal) => {
+      const day = meal.day || "";
       if (!acc[day]) {
         acc[day] = [];
       }
@@ -269,10 +376,13 @@ export const getAllMeals = query({
       return acc;
     }, {});
 
-    console.log("Meals by day:", Object.keys(mealsByDay).map(day => ({
-      day,
-      count: mealsByDay[day]?.length || 0
-    })));
+    console.log(
+      "Meals by day:",
+      Object.keys(mealsByDay).map((day) => ({
+        day,
+        count: mealsByDay[day]?.length || 0,
+      }))
+    );
 
     return formattedMeals;
   },
@@ -290,10 +400,12 @@ export const getMealHistoryByDateRange = query({
     const meals = await ctx.db
       .query("meal")
       .withIndex("by_user_date", (q) => q.eq("userId", args.userId))
-      .filter((q) => q.and(
-        q.gte(q.field("date"), args.startDate),
-        q.lte(q.field("date"), args.endDate)
-      ))
+      .filter((q) =>
+        q.and(
+          q.gte(q.field("date"), args.startDate),
+          q.lte(q.field("date"), args.endDate)
+        )
+      )
       .collect();
 
     // Define interface for meal summary
@@ -307,33 +419,36 @@ export const getMealHistoryByDateRange = query({
     }
 
     // Group and summarize meals by date
-    const mealsByDate = meals.reduce<Record<string, DailyMealSummary>>((acc, meal) => {
-      const { date } = meal;
+    const mealsByDate = meals.reduce<Record<string, DailyMealSummary>>(
+      (acc, meal) => {
+        const { date } = meal;
 
-      if (!acc[date]) {
-        acc[date] = {
-          date,
-          totalCalories: 0,
-          totalProtein: 0,
-          totalCarbs: 0,
-          totalFat: 0,
-          meals: []
-        };
-      }
+        if (!acc[date]) {
+          acc[date] = {
+            date,
+            totalCalories: 0,
+            totalProtein: 0,
+            totalCarbs: 0,
+            totalFat: 0,
+            meals: [],
+          };
+        }
 
-      // Add meal data to summary
-      acc[date].totalCalories += meal.calories;
-      acc[date].totalProtein += meal.protein;
-      acc[date].totalCarbs += meal.carbs;
-      acc[date].totalFat += meal.fat;
-      acc[date].meals.push(meal);
+        // Add meal data to summary
+        acc[date].totalCalories += meal.calories;
+        acc[date].totalProtein += meal.protein;
+        acc[date].totalCarbs += meal.carbs;
+        acc[date].totalFat += meal.fat;
+        acc[date].meals.push(meal);
 
-      return acc;
-    }, {});
+        return acc;
+      },
+      {}
+    );
 
     // Convert to array and sort by date
-    return Object.values(mealsByDate).sort((a, b) =>
-      new Date(a.date).getTime() - new Date(b.date).getTime()
+    return Object.values(mealsByDate).sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
   },
 });
@@ -372,7 +487,13 @@ async function seedFoodMacrosHelper(ctx: any) {
     { name: "potato", calories: 77, protein: 2, carbs: 17, fat: 0.1 },
     { name: "quinoa", calories: 120, protein: 4.4, carbs: 21, fat: 1.9 },
     { name: "brown rice", calories: 112, protein: 2.6, carbs: 23, fat: 0.9 },
-    { name: "whole wheat bread", calories: 81, protein: 4, carbs: 13.8, fat: 1.1 },
+    {
+      name: "whole wheat bread",
+      calories: 81,
+      protein: 4,
+      carbs: 13.8,
+      fat: 1.1,
+    },
     { name: "corn", calories: 96, protein: 3.4, carbs: 21, fat: 1.5 },
     { name: "barley", calories: 123, protein: 2.3, carbs: 28, fat: 0.4 },
 
@@ -428,37 +549,175 @@ async function seedFoodMacrosHelper(ctx: any) {
     { name: "trail mix", calories: 173, protein: 5, carbs: 12, fat: 12 },
 
     // Breakfast Recipes
-    {name: "Egg and Bacon Mi-Muffin", calories: 333, protein: 24, carbs: 30, fat: 13},
-    {name: "Protein Rich PB Brownie Muffins", calories: 70, protein: 6, carbs: 7, fat: 2},
-    {name: "Simple Overnight Oats", calories: 115, protein: 8, carbs: 16, fat: 2},
-    {name: "Macro Friendly French Toast", calories: 170, protein: 12, carbs: 18, fat: 5.5},
-    {name: "Cinnamon Roll Oats Mug Cake", calories: 170, protein: 15, carbs: 20, fat: 3},
-    {name: "High Fiber Zoats", calories: 115, protein: 8.5, carbs: 16, fat: 1.5},
-    {name: "Banana Chocolate Chip Muffins", calories: 95, protein: 7, carbs: 12, fat: 2},
-    {name: "Fluffy Protein Waffles ", calories: 225, protein: 20, carbs: 25, fat: 5},
-    {name: "Turkey and Broccoli Omelet ", calories: 397, protein: 35, carbs: 26, fat: 17},
-    {name: "Strawberries and Cream Overnight Oatmeal", calories: 282, protein: 30, carbs: 27, fat: 6},
+    {
+      name: "Egg and Bacon Mi-Muffin",
+      calories: 333,
+      protein: 24,
+      carbs: 30,
+      fat: 13,
+    },
+    {
+      name: "Protein Rich PB Brownie Muffins",
+      calories: 70,
+      protein: 6,
+      carbs: 7,
+      fat: 2,
+    },
+    {
+      name: "Simple Overnight Oats",
+      calories: 115,
+      protein: 8,
+      carbs: 16,
+      fat: 2,
+    },
+    {
+      name: "Macro Friendly French Toast",
+      calories: 170,
+      protein: 12,
+      carbs: 18,
+      fat: 5.5,
+    },
+    {
+      name: "Cinnamon Roll Oats Mug Cake",
+      calories: 170,
+      protein: 15,
+      carbs: 20,
+      fat: 3,
+    },
+    {
+      name: "High Fiber Zoats",
+      calories: 115,
+      protein: 8.5,
+      carbs: 16,
+      fat: 1.5,
+    },
+    {
+      name: "Banana Chocolate Chip Muffins",
+      calories: 95,
+      protein: 7,
+      carbs: 12,
+      fat: 2,
+    },
+    {
+      name: "Fluffy Protein Waffles ",
+      calories: 225,
+      protein: 20,
+      carbs: 25,
+      fat: 5,
+    },
+    {
+      name: "Turkey and Broccoli Omelet ",
+      calories: 397,
+      protein: 35,
+      carbs: 26,
+      fat: 17,
+    },
+    {
+      name: "Strawberries and Cream Overnight Oatmeal",
+      calories: 282,
+      protein: 30,
+      carbs: 27,
+      fat: 6,
+    },
 
     // Lunch Recipes
-    {name: "Chicken Salad", calories: 470, protein: 21, carbs: 47, fat: 22},
-    {name: "Philly CheesesSteak Pita", calories: 310, protein: 23, carbs: 25, fat: 13},
-    {name: "Lemon Ricotta Pasta", calories: 477, protein: 22, carbs: 68, fat: 13},
-    {name: " Macro-Friendly Apple Pecan Salad", calories: 315, protein: 25, carbs: 18, fat: 16},
-    {name: "Philly Cheesesteak Stuffed Peppers", calories: 350, protein: 25, carbs: 25, fat: 15},
-    {name: "BBQ Pulled Pork", calories: 70, protein: 12, carbs: 2.5, fat: 1},
-    {name: "Low-Fat Monte Cristo", calories: 290, protein: 25, carbs: 30, fat: 8},
-    {name: "Tasty Tuna Grain Bowl", calories: 392, protein: 23, carbs: 48, fat: 12},
-    {name: "Hit-The-Spot Mini Pepperoni Pizza", calories: 107, protein: 7, carbs: 13, fat: 3},
-    {name: "Rotisserie Chicken Salad", calories: 470, protein: 21, carbs: 47, fat: 22},
-    {name: "Tuna Poke Bowl", calories: 485, protein: 40, carbs: 43, fat: 17},
+    { name: "Chicken Salad", calories: 470, protein: 21, carbs: 47, fat: 22 },
+    {
+      name: "Philly CheesesSteak Pita",
+      calories: 310,
+      protein: 23,
+      carbs: 25,
+      fat: 13,
+    },
+    {
+      name: "Lemon Ricotta Pasta",
+      calories: 477,
+      protein: 22,
+      carbs: 68,
+      fat: 13,
+    },
+    {
+      name: " Macro-Friendly Apple Pecan Salad",
+      calories: 315,
+      protein: 25,
+      carbs: 18,
+      fat: 16,
+    },
+    {
+      name: "Philly Cheesesteak Stuffed Peppers",
+      calories: 350,
+      protein: 25,
+      carbs: 25,
+      fat: 15,
+    },
+    { name: "BBQ Pulled Pork", calories: 70, protein: 12, carbs: 2.5, fat: 1 },
+    {
+      name: "Low-Fat Monte Cristo",
+      calories: 290,
+      protein: 25,
+      carbs: 30,
+      fat: 8,
+    },
+    {
+      name: "Tasty Tuna Grain Bowl",
+      calories: 392,
+      protein: 23,
+      carbs: 48,
+      fat: 12,
+    },
+    {
+      name: "Hit-The-Spot Mini Pepperoni Pizza",
+      calories: 107,
+      protein: 7,
+      carbs: 13,
+      fat: 3,
+    },
+    {
+      name: "Rotisserie Chicken Salad",
+      calories: 470,
+      protein: 21,
+      carbs: 47,
+      fat: 22,
+    },
+    { name: "Tuna Poke Bowl", calories: 485, protein: 40, carbs: 43, fat: 17 },
 
     // Dinner Recipes
-    {name: "Tortilla Pizza", calories: 460, protein: 30, carbs: 58, fat: 12},
-    {name: "Mozzarella Chicken", calories: 289, protein: 41, carbs: 11, fat: 9},
-    {name: "Chicken Enchiladas", calories: 180, protein: 17, carbs: 14, fat: 6},
-    {name: "Low Fat Spicy Cabbage with Ground Turkey", calories: 378, protein: 50, carbs: 22, fat: 10},
-    {name: "Bursting with Goodness Burrito Bowl", calories: 646, protein: 49, carbs: 54, fat: 26},
-    {name: "Taco Tuesday Turkey Salad", calories: 470, protein: 36, carbs: 21, fat: 27},
+    { name: "Tortilla Pizza", calories: 460, protein: 30, carbs: 58, fat: 12 },
+    {
+      name: "Mozzarella Chicken",
+      calories: 289,
+      protein: 41,
+      carbs: 11,
+      fat: 9,
+    },
+    {
+      name: "Chicken Enchiladas",
+      calories: 180,
+      protein: 17,
+      carbs: 14,
+      fat: 6,
+    },
+    {
+      name: "Low Fat Spicy Cabbage with Ground Turkey",
+      calories: 378,
+      protein: 50,
+      carbs: 22,
+      fat: 10,
+    },
+    {
+      name: "Bursting with Goodness Burrito Bowl",
+      calories: 646,
+      protein: 49,
+      carbs: 54,
+      fat: 26,
+    },
+    {
+      name: "Taco Tuesday Turkey Salad",
+      calories: 470,
+      protein: 36,
+      carbs: 21,
+      fat: 27,
+    },
   ];
 
   const existingItems = await ctx.db.query("foodMacros").collect();
@@ -485,7 +744,7 @@ async function seedFoodMacrosHelper(ctx: any) {
         if (needsUpdate) {
           updatedItems.push({
             id: existingItem._id,
-            ...food
+            ...food,
           });
         }
       }
@@ -505,11 +764,14 @@ async function seedFoodMacrosHelper(ctx: any) {
         status: "updated",
         message: `Added ${newItems.length} new food items and updated ${updatedItems.length} existing items`,
         insertedIds,
-        updatedCount: updatedItems.length
+        updatedCount: updatedItems.length,
       };
     }
 
-    return { status: "skipped", message: "Food data already exists and is up to date" };
+    return {
+      status: "skipped",
+      message: "Food data already exists and is up to date",
+    };
   }
   const insertedIds = [];
   for (const food of foodItems) {
