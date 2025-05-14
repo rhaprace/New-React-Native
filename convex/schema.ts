@@ -102,6 +102,7 @@ export default defineSchema({
     day: v.string(),
     date: v.string(),
     lastUsed: v.string(), // ISO date string for sorting by recency
+    isCompleted: v.optional(v.boolean()), // Flag to track completion status
   })
     .index("by_user", ["userId"])
     .index("by_user_name", ["userId", "name"])

@@ -1,0 +1,85 @@
+@startuml AtleTech Workout Activity Diagram
+
+|User|
+|App|
+|Database|
+
+start
+
+|User|
+:Open Workout Screen;
+
+|App|
+:Load Weekly Workout Plan;
+:Display Today's Exercises;
+
+|User|
+:Select Exercise;
+
+|App|
+:Show Exercise Details;
+
+|User|
+:Start Exercise Timer;
+
+|App|
+:Initialize Timer;
+:Start Countdown;
+
+|User|
+:Perform Exercise;
+
+|App|
+:Update Timer Display;
+
+|User|
+if (Pause Timer?) then (yes)
+  :Tap Pause Button;
+
+  |App|
+  :Pause Timer;
+
+  |User|
+  :Resume When Ready;
+
+  |App|
+  :Resume Timer;
+else (no)
+endif
+
+|App|
+:Timer Completed;
+:Notify User;
+
+|User|
+if (Mark as Completed?) then (yes)
+  :Confirm Completion;
+
+  |App|
+  :Update Exercise Status;
+
+  |Database|
+  :Save Completed Exercise;
+  :Add to Recent Workouts;
+  :Update Workout History;
+
+  |App|
+  :Show Completion Feedback;
+  :Update Progress Stats;
+else (no)
+  :Continue Without Marking;
+endif
+
+|User|
+if (Continue to Next Exercise?) then (yes)
+  :Select Next Exercise;
+
+  |App|
+  :Show Next Exercise Details;
+else (no)
+  :Exit Workout;
+endif
+
+stop
+
+@enduml

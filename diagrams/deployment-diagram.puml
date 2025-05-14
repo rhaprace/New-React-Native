@@ -1,0 +1,67 @@
+@startuml AtleTech Deployment Diagram
+
+' Define nodes
+node "User Device" as device {
+  node "Mobile App" as app {
+    component "React Native App" as reactNative {
+      component "UI Components" as ui
+      component "Navigation (Expo Router)" as navigation
+      component "State Management" as state
+      component "API Clients" as apiClients
+    }
+    component "Expo SDK" as expo {
+      component "Sensors" as sensors
+      component "Notifications" as notifications
+      component "Storage" as storage
+    }
+  }
+}
+
+node "Cloud Services" as cloud {
+  node "Authentication Service" as auth {
+    component "Clerk" as clerk
+  }
+  
+  node "Backend Service" as backend {
+    component "Convex" as convex {
+      component "Database" as database
+      component "API Endpoints" as api
+      component "Real-time Sync" as sync
+    }
+  }
+  
+  node "Payment Service" as payment {
+    component "PayMongo" as paymongo
+  }
+  
+  node "Storage Service" as cloudStorage {
+    component "User Data" as userData
+    component "Media Storage" as media
+  }
+}
+
+' Define connections
+device -- cloud : HTTPS
+
+reactNative -- expo
+apiClients -- clerk : Authentication API
+apiClients -- convex : Data API
+apiClients -- paymongo : Payment API
+
+clerk -- convex : User Data
+convex -- paymongo : Subscription Data
+
+' Define interfaces
+interface "Authentication API" as authAPI
+interface "Data API" as dataAPI
+interface "Payment API" as paymentAPI
+
+clerk -- authAPI
+convex -- dataAPI
+paymongo -- paymentAPI
+
+apiClients -- authAPI
+apiClients -- dataAPI
+apiClients -- paymentAPI
+
+@enduml

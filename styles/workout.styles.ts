@@ -303,14 +303,16 @@ export const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(15, 23, 42, 0.5)", // slate_900 with opacity
+    backgroundColor: "rgba(15, 23, 42, 0.7)", // Darker background for better contrast
+    paddingHorizontal: 16, // Add padding to prevent modal from touching screen edges
   },
   modalContent: {
     backgroundColor: COLORS.surface,
     borderRadius: 16,
     padding: 24,
     width: "90%",
-    maxHeight: "80%",
+    maxHeight: "90%",
+    overflow: "hidden", // Changed to hidden to prevent overflow issues
   },
   modalTitle: {
     fontSize: 20,
@@ -520,9 +522,12 @@ export const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
+    maxHeight: 250,
+    overflow: "hidden", // Changed to hidden to prevent overflow issues
+    zIndex: 1, // Reduced to prevent layering issues
   },
   searchResults: {
-    maxHeight: 150, // Reduced height to prevent overflow
+    maxHeight: 200,
     backgroundColor: SLATE.slate_50,
     borderWidth: 1,
     borderColor: SLATE.slate_300,
@@ -531,22 +536,18 @@ export const styles = StyleSheet.create({
     elevation: 2,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.5,
+    shadowOpacity: 0.15,
+    shadowRadius: 1,
+    zIndex: 1,
   },
   searchResultItem: {
-    padding: 12,
+    padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: SLATE.slate_200,
     backgroundColor: COLORS.surface,
     marginHorizontal: 2,
     marginVertical: 2,
-    borderRadius: 6,
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
+    borderRadius: 4,
   },
   searchResultItemName: {
     fontSize: 16,

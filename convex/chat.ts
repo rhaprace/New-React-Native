@@ -1,5 +1,30 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
+
+// Define regex patterns for message matching
+const MESSAGE_PATTERNS = {
+  profile:
+    /(?:show|tell|get|what|my|about)\s+(?:me|my|profile|stats|information|details|data)/i,
+  workout:
+    /(?:show|tell|get|what|my|about)\s+(?:workout|exercise|training|fitness|gym|routine)/i,
+  nutrition:
+    /(?:show|tell|get|what|my|about)\s+(?:meal|food|nutrition|diet|calories|eating|macros)/i,
+  progress:
+    /(?:show|tell|get|what|my|about)\s+(?:progress|improvement|trend|results|achievement)/i,
+  recommendation:
+    /(?:recommend|suggest|advice|what|should|can|could)\s+(?:i|me|my|to|for|about)/i,
+  mealRecommendation:
+    /(?:recommend|suggest|what|should|can|could)\s+(?:meal|food|eat|dinner|lunch|breakfast|snack)/i,
+  workoutRecommendation:
+    /(?:recommend|suggest|what|should|can|could)\s+(?:workout|exercise|training|routine)/i,
+  calorieCheck:
+    /(?:how|what|tell|show)\s+(?:many|much|are|is)\s+(?:calories|calorie)/i,
+  macroCheck:
+    /(?:how|what|tell|show)\s+(?:many|much|are|is)\s+(?:protein|carbs|fat|macros)/i,
+  goalCheck:
+    /(?:how|what|tell|show)\s+(?:am|is|are)\s+(?:i|my|the)\s+(?:doing|progressing|performing)/i,
+};
 
 // Define types for workout data
 interface Exercise {
@@ -142,8 +167,195 @@ const weightGainWorkouts: DailyWorkout[] = [
         caloriesBurned: 150,
       },
     ],
-  }
+  },
 ];
+
+// Add these helper functions at the top of the file after imports
+interface MealRecommendation {
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  category: string;
+  reason: string;
+}
+
+function analyzeNutritionalNeeds(
+  profile: any,
+  historicalMeals: any[],
+  todayMeals: any[],
+  calorieTracking: any
+): {
+  needs: string[];
+  goals: { calories: number; protein: number; carbs: number; fat: number };
+} {
+  const needs: string[] = [];
+  const goals = {
+    calories: profile?.dailyCalories || 2000,
+    protein: profile?.weight ? profile.weight * 1.6 : 80, // 1.6g per kg of bodyweight
+    carbs: profile?.dailyCalories ? (profile.dailyCalories * 0.45) / 4 : 225, // 45% of calories from carbs
+    fat: profile?.dailyCalories ? (profile.dailyCalories * 0.25) / 9 : 55, // 25% of calories from fat
+  };
+
+  // Calculate today's totals
+  const todayTotals = todayMeals.reduce(
+    (acc, meal) => ({
+      calories: acc.calories + meal.calories,
+      protein: acc.protein + meal.protein,
+      carbs: acc.carbs + meal.carbs,
+      fat: acc.fat + meal.fat,
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  );
+
+  // Calculate historical averages
+  const historicalTotals = historicalMeals.reduce(
+    (acc, meal) => ({
+      calories: acc.calories + meal.calories,
+      protein: acc.protein + meal.protein,
+      carbs: acc.carbs + meal.carbs,
+      fat: acc.fat + meal.fat,
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  );
+
+  const daysWithMeals = new Set(historicalMeals.map((m) => m.date)).size;
+  const avgDaily = {
+    calories: historicalTotals.calories / daysWithMeals,
+    protein: historicalTotals.protein / daysWithMeals,
+    carbs: historicalTotals.carbs / daysWithMeals,
+    fat: historicalTotals.fat / daysWithMeals,
+  };
+
+  // Analyze needs
+  if (todayTotals.calories < goals.calories * 0.7) {
+    needs.push("calories");
+  }
+  if (todayTotals.protein < goals.protein * 0.7) {
+    needs.push("protein");
+  }
+  if (todayTotals.carbs < goals.carbs * 0.7) {
+    needs.push("carbs");
+  }
+  if (todayTotals.fat < goals.fat * 0.7) {
+    needs.push("fat");
+  }
+
+  // Check historical patterns
+  if (avgDaily.protein < goals.protein * 0.8) {
+    needs.push("protein_habit");
+  }
+  if (avgDaily.calories < goals.calories * 0.8) {
+    needs.push("calories_habit");
+  }
+
+  return { needs, goals };
+}
+
+function generateMealRecommendations(
+  needs: string[],
+  goals: { calories: number; protein: number; carbs: number; fat: number },
+  todayTotals: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  },
+  foodMacros: any[]
+): MealRecommendation[] {
+  const recommendations: MealRecommendation[] = [];
+  const remainingCalories = goals.calories - todayTotals.calories;
+  const remainingProtein = goals.protein - todayTotals.protein;
+  const remainingCarbs = goals.carbs - todayTotals.carbs;
+  const remainingFat = goals.fat - todayTotals.fat;
+
+  // Filter and sort foods based on needs
+  let filteredFoods = [...foodMacros];
+
+  if (needs.includes("protein")) {
+    filteredFoods = filteredFoods
+      .filter((food) => food.protein > 15)
+      .sort((a, b) => b.protein - a.protein);
+    recommendations.push({
+      name: filteredFoods[0].name,
+      calories: filteredFoods[0].calories,
+      protein: filteredFoods[0].protein,
+      carbs: filteredFoods[0].carbs,
+      fat: filteredFoods[0].fat,
+      category: "protein",
+      reason: `High in protein (${filteredFoods[0].protein}g) to help meet your daily goal`,
+    });
+  }
+
+  if (needs.includes("calories")) {
+    filteredFoods = filteredFoods
+      .filter((food) => food.calories > 300)
+      .sort((a, b) => b.calories - a.calories);
+    recommendations.push({
+      name: filteredFoods[0].name,
+      calories: filteredFoods[0].calories,
+      protein: filteredFoods[0].protein,
+      carbs: filteredFoods[0].carbs,
+      fat: filteredFoods[0].fat,
+      category: "calories",
+      reason: `Calorie-dense (${filteredFoods[0].calories} cal) to help reach your daily goal`,
+    });
+  }
+
+  if (needs.includes("carbs")) {
+    filteredFoods = filteredFoods
+      .filter((food) => food.carbs > 30)
+      .sort((a, b) => b.carbs - a.carbs);
+    recommendations.push({
+      name: filteredFoods[0].name,
+      calories: filteredFoods[0].calories,
+      protein: filteredFoods[0].protein,
+      carbs: filteredFoods[0].carbs,
+      fat: filteredFoods[0].fat,
+      category: "carbs",
+      reason: `Rich in carbohydrates (${filteredFoods[0].carbs}g) for energy`,
+    });
+  }
+
+  if (needs.includes("fat")) {
+    filteredFoods = filteredFoods
+      .filter((food) => food.fat > 10)
+      .sort((a, b) => b.fat - a.fat);
+    recommendations.push({
+      name: filteredFoods[0].name,
+      calories: filteredFoods[0].calories,
+      protein: filteredFoods[0].protein,
+      carbs: filteredFoods[0].carbs,
+      fat: filteredFoods[0].fat,
+      category: "fat",
+      reason: `Good source of healthy fats (${filteredFoods[0].fat}g)`,
+    });
+  }
+
+  // Add balanced meal suggestions
+  if (recommendations.length === 0) {
+    const balancedFoods = foodMacros
+      .filter((food) => food.protein > 10 && food.carbs > 20 && food.fat > 5)
+      .sort(() => 0.5 - Math.random())
+      .slice(0, 2);
+
+    balancedFoods.forEach((food) => {
+      recommendations.push({
+        name: food.name,
+        calories: food.calories,
+        protein: food.protein,
+        carbs: food.carbs,
+        fat: food.fat,
+        category: "balanced",
+        reason:
+          "Well-balanced meal with good amounts of protein, carbs, and healthy fats",
+      });
+    });
+  }
+
+  return recommendations;
+}
 
 // Get chat messages for a user
 export const getChatMessages = query({
@@ -187,7 +399,148 @@ export const addChatMessage = mutation({
   },
 });
 
-// Generate a bot response based on user query
+// Add these menu options after the imports
+const MENU_OPTIONS = {
+  WORKOUT: {
+    title: "Workout Options",
+    choices: [
+      "Get today's workout plan",
+      "View weekly workout schedule",
+      "Get weight loss workout",
+      "Get muscle gain workout",
+      "Get maintenance workout",
+      "Get beginner workout",
+      "Get advanced workout",
+    ],
+  },
+  NUTRITION: {
+    title: "Nutrition Options",
+    choices: [
+      "Get today's meal plan",
+      "View calorie tracking",
+      "Get weight loss meal plan",
+      "Get muscle gain meal plan",
+      "Get maintenance meal plan",
+      "Check macro balance",
+      "Get meal timing suggestions",
+    ],
+  },
+  PROGRESS: {
+    title: "Progress Tracking",
+    choices: [
+      "View weekly progress",
+      "View monthly progress",
+      "Check goal adherence",
+      "View workout history",
+      "View nutrition history",
+      "Get progress insights",
+      "View achievement stats",
+    ],
+  },
+  PROFILE: {
+    title: "Profile Information",
+    choices: [
+      "View current stats",
+      "Update weight goal",
+      "Update activity level",
+      "View calorie goals",
+      "View macro goals",
+      "View workout preferences",
+      "View meal preferences",
+    ],
+  },
+};
+
+// Define types for activity levels
+type ActivityLevel =
+  | "Sedentary"
+  | "Lightly Active"
+  | "Moderately Active"
+  | "Very Active"
+  | "Extremely Active";
+
+// Define types for weight goals
+type WeightGoal = "lose" | "maintain" | "gain";
+
+// Add this interface after the imports
+interface Profile {
+  _id: Id<"profile">;
+  _creationTime: number;
+  weight?: number;
+  height?: number;
+  age?: number;
+  bmr?: number;
+  dailyCalories?: number;
+  activityLevel?: ActivityLevel;
+  gender?: "Male" | "Female" | "Other";
+  userId: Id<"users">;
+}
+
+// Update the User interface to match the database schema
+interface User {
+  _id: Id<"users">;
+  _creationTime: number;
+  name: string;
+  image?: string;
+  subscriptionEndDate?: string;
+  trialStartDate?: string;
+  trialEndDate?: string;
+  clerkId: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+}
+
+// Add this helper function to format menu options
+function formatMenuOptions(): string {
+  let menuText = "📋 Available Options:\n\n";
+  Object.entries(MENU_OPTIONS).forEach(([category, data]) => {
+    menuText += `🔹 ${data.title}:\n`;
+    data.choices.forEach((choice, index) => {
+      menuText += `${index + 1}. ${choice}\n`;
+    });
+    menuText += "\n";
+  });
+  return menuText;
+}
+
+// Update the getTimeBasedGreeting function with only three greetings
+function getTimeBasedGreeting(): string {
+  const hour = new Date().getHours();
+
+  if (hour >= 5 && hour < 12) {
+    return "Good morning";
+  } else if (hour >= 12 && hour < 22) {
+    return "Good evening";
+  } else {
+    return "Good night";
+  }
+}
+
+// Update greeting patterns to only include morning, evening, and night
+const GREETING_PATTERNS = {
+  hello:
+    /^(hi|hello|hey|greetings|sup|yo|what's up|whats up|howdy|hola|hey there|hi there)$/i,
+  howAreYou:
+    /^(how are you|how's it going|how are you doing|how do you do|what's up|whats up)$/i,
+  goodMorning: /^(good morning|morning|gm|rise and shine)$/i,
+  goodEvening: /^(good evening|evening|ge)$/i,
+  goodNight: /^(good night|night|gn|sleep well)$/i,
+  thanks: /^(thanks|thank you|thx|ty|appreciate it|much obliged)$/i,
+  bye: /^(bye|goodbye|see you|see ya|farewell|take care|cya)$/i,
+};
+
+// Add a debug function to help verify the time
+function getCurrentTimeDebug(): string {
+  const now = new Date();
+  return `Current time: ${now.toLocaleTimeString()}, Hour: ${now.getHours()}, Minutes: ${now.getMinutes()}`;
+}
+
+// Add menu trigger pattern
+const MENU_TRIGGER =
+  /^(menu|options|help|show menu|what can you do|commands)$/i;
+
+// Modify the generateBotResponse function
 export const generateBotResponse = mutation({
   args: {
     userId: v.id("users"),
@@ -204,1152 +557,464 @@ export const generateBotResponse = mutation({
       timestamp: new Date().toISOString(),
     });
 
-    // Get user data to personalize responses
-    const user = await ctx.db.get(userId);
-
     // Get user profile data
     const profile = await ctx.db
       .query("profile")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
-    // Get today's date and other date references
-    const today = new Date().toISOString().split("T")[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
-    const lastWeek = new Date(Date.now() - 7 * 86400000).toISOString().split("T")[0];
+    // Get user data for name - Fix the user query to use the correct index
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("_id"), userId))
+      .first();
 
-    // Get recent messages for context (last 5 messages)
-    const recentMessages = await ctx.db
-      .query("chatMessages")
-      .withIndex("by_user_timestamp", (q) => q.eq("userId", userId))
+    // Get the user's name from the database
+    let userName = "there";
+    if (user) {
+      // Try to get the name from the user object
+      const userData = user as any; // Temporarily use any to access the fields
+      userName =
+        userData.fullname ||
+        userData.firstName ||
+        userData.name ||
+        userData.email?.split("@")[0] ||
+        "there";
+    }
+
+    // Get recent workouts
+    const recentWorkouts = await ctx.db
+      .query("recentWorkouts")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .take(5);
 
-    // Simple context tracking
-    const conversationContext = {
-      mentionedWorkout: false,
-      mentionedMeal: false,
-      mentionedProgress: false,
-      askedForMotivation: false
-    };
+    // Get today's meals
+    const today = new Date().toISOString().split("T")[0];
+    const todayMeals = await ctx.db
+      .query("meal")
+      .withIndex("by_user_date", (q) =>
+        q.eq("userId", userId).eq("date", today)
+      )
+      .collect();
 
-    // Analyze recent messages for context
-    recentMessages.forEach(msg => {
-      const content = msg.content.toLowerCase();
-      if (content.includes("workout") || content.includes("exercise")) {
-        conversationContext.mentionedWorkout = true;
-      }
-      if (content.includes("meal") || content.includes("food") || content.includes("eat")) {
-        conversationContext.mentionedMeal = true;
-      }
-      if (content.includes("progress") || content.includes("improve")) {
-        conversationContext.mentionedProgress = true;
-      }
-      if (content.includes("motivate") || content.includes("motivation")) {
-        conversationContext.askedForMotivation = true;
-      }
-    });
+    // Get historical data
+    const lastMonth = new Date(Date.now() - 30 * 86400000)
+      .toISOString()
+      .split("T")[0];
+    const historicalWorkouts = await ctx.db
+      .query("exercise")
+      .withIndex("by_user_day_date", (q) => q.eq("userId", userId))
+      .filter((q) => q.gte(q.field("date"), lastMonth))
+      .collect();
 
-    // Process the user message and generate a response
-    let botResponse = "";
-    const normalizedMessage = userMessage.toLowerCase();
+    const historicalMeals = await ctx.db
+      .query("meal")
+      .withIndex("by_user_date", (q) => q.eq("userId", userId))
+      .filter((q) => q.gte(q.field("date"), lastMonth))
+      .collect();
 
-    // Enhanced keyword-based response system with more specific queries
-    if (normalizedMessage.includes("hello") || normalizedMessage.includes("hi")) {
-      botResponse = `Hello ${user?.fullname || "there"}! How can I help you with your fitness journey today?`;
-    }
-    // Handle specific profile questions
-    else if (normalizedMessage.includes("age") || normalizedMessage.includes("how old")) {
-      if (profile && profile.age) {
-        botResponse = `You are ${profile.age} years old according to your profile.`;
-      } else {
-        botResponse = "I don't have your age information. You can add it in your profile settings.";
-      }
-    }
-    else if (normalizedMessage.includes("weight") || normalizedMessage.includes("how much do i weigh")) {
-      if (profile && profile.weight) {
-        botResponse = `Your current weight is ${profile.weight} kg.`;
-      } else {
-        botResponse = "I don't have your weight information. You can add it in your profile settings.";
-      }
-    }
-    else if (normalizedMessage.includes("height") || normalizedMessage.includes("how tall")) {
-      if (profile && profile.height) {
-        botResponse = `Your height is ${profile.height} cm.`;
-      } else {
-        botResponse = "I don't have your height information. You can add it in your profile settings.";
-      }
-    }
-    else if (normalizedMessage.includes("gender")) {
-      if (profile && profile.gender) {
-        botResponse = `Your gender is set as ${profile.gender}.`;
-      } else {
-        botResponse = "I don't have your gender information. You can add it in your profile settings.";
-      }
-    }
-    else if (normalizedMessage.includes("activity") || normalizedMessage.includes("active")) {
-      if (profile && profile.activityLevel) {
-        botResponse = `Your activity level is set as "${profile.activityLevel}".`;
-      } else {
-        botResponse = "I don't have your activity level information. You can add it in your profile settings.";
-      }
-    }
-    else if (normalizedMessage.includes("bmr")) {
-      if (profile && profile.bmr) {
-        botResponse = `Your Basal Metabolic Rate (BMR) is ${profile.bmr} calories per day.`;
-      } else {
-        botResponse = "I don't have your BMR information. Complete your profile with age, weight, height, and gender to calculate it.";
-      }
-    }
-    // General profile information
-    else if (normalizedMessage.includes("profile") || normalizedMessage.includes("my info")) {
-      if (profile) {
-        botResponse = `Here's your profile information:\n`;
-        if (profile.weight) botResponse += `Weight: ${profile.weight} kg\n`;
-        if (profile.height) botResponse += `Height: ${profile.height} cm\n`;
-        if (profile.age) botResponse += `Age: ${profile.age} years\n`;
-        if (profile.gender) botResponse += `Gender: ${profile.gender}\n`;
-        if (profile.activityLevel) botResponse += `Activity Level: ${profile.activityLevel}\n`;
-        if (profile.bmr) botResponse += `BMR: ${profile.bmr} calories\n`;
-        if (profile.dailyCalories) botResponse += `Daily Calorie Goal: ${profile.dailyCalories} calories`;
-      } else {
-        botResponse = "I don't have your profile information yet. Please complete your profile in the app.";
-      }
-    }
-    // Calorie-related queries
-    else if (normalizedMessage.includes("daily calorie") || normalizedMessage.includes("calorie goal")) {
-      if (profile && profile.dailyCalories) {
-        botResponse = `Your daily calorie goal is ${profile.dailyCalories} calories.`;
-      } else {
-        botResponse = "I don't have your daily calorie goal information. Please complete your profile to set calorie goals.";
-      }
-    }
-    else if (normalizedMessage.includes("calories") || normalizedMessage.includes("calorie")) {
-      // Get calorie tracking data
-      const calorieData = await ctx.db
-        .query("calorieGoalTracking")
-        .withIndex("by_user_date", (q) =>
-          q.eq("userId", userId).eq("date", today)
-        )
-        .first();
+    // Process the user's message and generate appropriate response
+    let response = "";
+    const message = userMessage.toLowerCase();
 
-      if (calorieData) {
-        botResponse = `Today's calorie information:\n`;
-        botResponse += `Goal: ${calorieData.dailyCalorieGoal} calories\n`;
-        botResponse += `Consumed: ${calorieData.totalCalories} calories\n`;
-
-        const remaining = calorieData.dailyCalorieGoal - calorieData.totalCalories;
-        if (remaining > 0) {
-          botResponse += `You have ${remaining} calories remaining for today.`;
-        } else {
-          botResponse += `You've exceeded your daily calorie goal by ${Math.abs(remaining)} calories.`;
-        }
-      } else {
-        if (profile?.dailyCalories) {
-          botResponse = `Your daily calorie goal is ${profile.dailyCalories} calories. I don't have tracking data for today yet.`;
-        } else {
-          botResponse = "I don't have your calorie information yet. Please complete your profile to set calorie goals.";
-        }
-      }
+    // Handle menu trigger
+    if (MENU_TRIGGER.test(message)) {
+      response =
+        "Here are the things I can help you with:\n\n" + formatMenuOptions();
     }
-    // Meal-related queries
-    else if (normalizedMessage.includes("breakfast")) {
-      const todaysMeals = await ctx.db
-        .query("meal")
-        .withIndex("by_user_date", (q) =>
-          q.eq("userId", userId).eq("date", today)
-        )
-        .filter((q) => q.eq(q.field("mealType"), "breakfast"))
-        .collect();
-
-      if (todaysMeals && todaysMeals.length > 0) {
-        botResponse = `Here's your breakfast for today:\n`;
-        todaysMeals.forEach(meal => {
-          botResponse += `- ${meal.name} (${meal.calories} cal, P: ${meal.protein}g, C: ${meal.carbs}g, F: ${meal.fat}g)\n`;
-        });
-      } else {
-        botResponse = "You don't have any breakfast logged for today.";
-      }
+    // Handle greetings first
+    else if (GREETING_PATTERNS.hello.test(message)) {
+      const greeting = getTimeBasedGreeting();
+      response = `${greeting}, ${userName}! 👋 I'm your fitness assistant. Type 'menu' to see what I can help you with.`;
+    } else if (GREETING_PATTERNS.howAreYou.test(message)) {
+      response = `I'm doing great, ${userName}! Ready to help you achieve your fitness goals. Type 'menu' to see what we can work on today.`;
+    } else if (GREETING_PATTERNS.goodMorning.test(message)) {
+      response = `Good morning, ${userName}! 🌅 Ready to start your day with some fitness? Type 'menu' to see your options.`;
+    } else if (GREETING_PATTERNS.goodEvening.test(message)) {
+      response = `Good evening, ${userName}! 🌙 Great time to plan tomorrow's fitness activities. Type 'menu' to see your options.`;
+    } else if (GREETING_PATTERNS.goodNight.test(message)) {
+      response = `Good night, ${userName}! 🌠 Rest well and I'll be here to help you with your fitness goals tomorrow.`;
+    } else if (GREETING_PATTERNS.thanks.test(message)) {
+      response = `You're welcome, ${userName}! 😊 Happy to help you on your fitness journey.`;
+    } else if (GREETING_PATTERNS.bye.test(message)) {
+      response = `Take care, ${userName}! 👋 Remember, consistency is key to achieving your fitness goals.`;
     }
-    else if (normalizedMessage.includes("lunch")) {
-      const todaysMeals = await ctx.db
-        .query("meal")
-        .withIndex("by_user_date", (q) =>
-          q.eq("userId", userId).eq("date", today)
-        )
-        .filter((q) => q.eq(q.field("mealType"), "lunch"))
-        .collect();
-
-      if (todaysMeals && todaysMeals.length > 0) {
-        botResponse = `Here's your lunch for today:\n`;
-        todaysMeals.forEach(meal => {
-          botResponse += `- ${meal.name} (${meal.calories} cal, P: ${meal.protein}g, C: ${meal.carbs}g, F: ${meal.fat}g)\n`;
-        });
+    // Handle workout options
+    else if (
+      MENU_OPTIONS.WORKOUT.choices.some((choice) =>
+        message.includes(choice.toLowerCase())
+      )
+    ) {
+      if (!profile) {
+        response = `Hey ${userName}, I'd love to give you personalized workout recommendations! Could you please complete your profile first?`;
       } else {
-        botResponse = "You don't have any lunch logged for today.";
-      }
-    }
-    else if (normalizedMessage.includes("dinner")) {
-      const todaysMeals = await ctx.db
-        .query("meal")
-        .withIndex("by_user_date", (q) =>
-          q.eq("userId", userId).eq("date", today)
-        )
-        .filter((q) => q.eq(q.field("mealType"), "dinner"))
-        .collect();
-
-      if (todaysMeals && todaysMeals.length > 0) {
-        botResponse = `Here's your dinner for today:\n`;
-        todaysMeals.forEach(meal => {
-          botResponse += `- ${meal.name} (${meal.calories} cal, P: ${meal.protein}g, C: ${meal.carbs}g, F: ${meal.fat}g)\n`;
-        });
-      } else {
-        botResponse = "You don't have any dinner logged for today.";
-      }
-    }
-    else if (normalizedMessage.includes("meal") || normalizedMessage.includes("food") || normalizedMessage.includes("eat")) {
-      // Get today's meals
-      const todaysMeals = await ctx.db
-        .query("meal")
-        .withIndex("by_user_date", (q) =>
-          q.eq("userId", userId).eq("date", today)
-        )
-        .collect();
-
-      if (todaysMeals && todaysMeals.length > 0) {
-        botResponse = `Here are your meals for today:\n`;
-
-        // Group meals by type
-        const mealsByType: Record<string, any[]> = {};
-        todaysMeals.forEach(meal => {
-          if (!mealsByType[meal.mealType]) {
-            mealsByType[meal.mealType] = [];
-          }
-          mealsByType[meal.mealType].push(meal);
+        const { plan, exercises } = getGoalBasedWorkoutPlan(
+          profile,
+          historicalWorkouts
+        );
+        response = `Here's your personalized workout plan, ${userName}:\n\n${plan}\n\nRecommended Exercises:\n`;
+        exercises.forEach((exercise) => {
+          response +=
+            `- ${exercise.name}\n` +
+            `  Duration: ${exercise.duration} minutes\n` +
+            `  Calories Burned: ~${exercise.caloriesBurned}\n` +
+            `  Type: ${exercise.type}\n\n`;
         });
 
-        // Format meals by type
-        for (const [type, meals] of Object.entries(mealsByType)) {
-          botResponse += `\n${type.charAt(0).toUpperCase() + type.slice(1)}:\n`;
-          meals.forEach(meal => {
-            botResponse += `- ${meal.name} (${meal.calories} cal, P: ${meal.protein}g, C: ${meal.carbs}g, F: ${meal.fat}g)\n`;
-          });
-        }
+        // Add complementary meal suggestions
+        response += `\n🍽️ Here are some meal suggestions to complement your workout, ${userName}:\n`;
+        const mealRecommendations = getGoalBasedMealPlan(profile, [], {
+          calories: profile.dailyCalories,
+        });
+        mealRecommendations.forEach((meal) => {
+          response +=
+            `- ${meal.name}\n` +
+            `  Calories: ${meal.calories}\n` +
+            `  Protein: ${meal.protein}g\n` +
+            `  Carbs: ${meal.carbs}g\n` +
+            `  Fat: ${meal.fat}g\n` +
+            `  Why: ${meal.reason}\n\n`;
+        });
+      }
+    }
+    // Handle nutrition options
+    else if (
+      MENU_OPTIONS.NUTRITION.choices.some((choice) =>
+        message.includes(choice.toLowerCase())
+      )
+    ) {
+      if (!profile) {
+        response = `Hi ${userName}! To give you the best meal recommendations, I'll need your profile information. Could you please set that up?`;
       } else {
-        botResponse = "You don't have any meals logged for today. Would you like to add a meal in the meal planner?";
-      }
-    }
-    // Workout-related queries
-    else if (normalizedMessage.includes("workout") || normalizedMessage.includes("exercise")) {
-      // Get today's exercises
-      const todaysExercises = await ctx.db
-        .query("exercise")
-        .withIndex("by_user_day_date", (q) =>
-          q.eq("userId", userId)
-        )
-        .filter((q) => q.eq(q.field("date"), today))
-        .collect();
+        const { needs, goals } = analyzeNutritionalNeeds(
+          profile,
+          historicalMeals,
+          todayMeals,
+          null
+        );
+        const mealRecommendations = getGoalBasedMealPlan(profile, needs, goals);
 
-      if (todaysExercises && todaysExercises.length > 0) {
-        const completedExercises = todaysExercises.filter(ex => ex.isCompleted);
-        const pendingExercises = todaysExercises.filter(ex => !ex.isCompleted);
-
-        botResponse = `Here's your workout information for today:\n`;
-
-        if (completedExercises.length > 0) {
-          botResponse += `\nCompleted Exercises (${completedExercises.length}):\n`;
-          completedExercises.forEach(ex => {
-            botResponse += `- ${ex.name} (${ex.duration} min, ${ex.caloriesBurned} cal)\n`;
-          });
-        }
-
-        if (pendingExercises.length > 0) {
-          botResponse += `\nPending Exercises (${pendingExercises.length}):\n`;
-          pendingExercises.forEach(ex => {
-            botResponse += `- ${ex.name} (${ex.duration} min, ${ex.caloriesBurned} cal)\n`;
-          });
-        }
-
-        // Calculate total calories burned
-        const totalCaloriesBurned = todaysExercises.reduce((sum, ex) => sum + (ex.isCompleted ? ex.caloriesBurned : 0), 0);
-        botResponse += `\nTotal calories burned: ${totalCaloriesBurned}`;
-      } else {
-        botResponse = "You don't have any exercises planned for today. Would you like to add a workout?";
-      }
-    }
-    // User information
-    else if (normalizedMessage.includes("name") || normalizedMessage.includes("who am i")) {
-      botResponse = `Your name is ${user?.fullname || "not set"}. You're logged in with the email ${user?.email || "unknown"}.`;
-    }
-    else if (normalizedMessage.includes("subscription") || normalizedMessage.includes("plan")) {
-      botResponse = `Your subscription status is: ${user?.subscription || "inactive"}.`;
-      if (user?.subscriptionEndDate) {
-        botResponse += ` It will end on ${new Date(user.subscriptionEndDate).toLocaleDateString()}.`;
-      }
-    }
-    // Help command
-    else if (normalizedMessage.includes("help")) {
-      botResponse = "I can help you with a wide range of fitness and nutrition topics:\n\n" +
-        "📋 PROFILE & TRACKING\n" +
-        "- Your profile information (age, weight, height, gender, activity level)\n" +
-        "- Today's calorie tracking and goals\n" +
-        "- Your subscription status\n\n" +
-
-        "🍽️ NUTRITION\n" +
-        "- Your meal plan for today (breakfast, lunch, dinner)\n" +
-        "- Nutrition information for specific foods\n" +
-        "- High-protein, high-carb, or healthy fat food recommendations\n" +
-        "- Weight gain or weight loss meal plans\n" +
-        "- Calorie intake history and trends\n\n" +
-
-        "💪 FITNESS\n" +
-        "- Today's workout plan\n" +
-        "- Exercise recommendations based on your goals\n" +
-        "- Your exercise history and statistics\n" +
-        "- Specific workout recommendations for weight gain or loss\n\n" +
-
-        "📊 PROGRESS & INSIGHTS\n" +
-        "- Your fitness and nutrition progress over time\n" +
-        "- Personalized insights based on your data\n" +
-        "- Motivational quotes and fitness tips\n\n" +
-
-        "Just ask me about any of these topics! For example:\n" +
-        "- \"What should I eat to gain weight?\"\n" +
-        "- \"Show me my exercise history\"\n" +
-        "- \"What are some high-protein foods?\"\n" +
-        "- \"How's my progress looking?\"";
-    }
-    // Progress tracking insights
-    else if (normalizedMessage.includes("progress") || normalizedMessage.includes("improvement") || normalizedMessage.includes("trend")) {
-      // Get historical calorie data
-      const calorieHistory = await ctx.db
-        .query("calorieGoalTracking")
-        .withIndex("by_user_date", (q) => q.eq("userId", userId))
-        .filter((q) => q.gte(q.field("date"), lastWeek))
-        .collect();
-
-      // Get historical exercise data
-      const exerciseHistory = await ctx.db
-        .query("exercise")
-        .withIndex("by_user_day_date", (q) => q.eq("userId", userId))
-        .filter((q) =>
-          q.and(
-            q.gte(q.field("date"), lastWeek),
-            q.eq(q.field("isCompleted"), true)
-          )
-        )
-        .collect();
-
-      if (calorieHistory.length > 0 || exerciseHistory.length > 0) {
-        botResponse = "Here's an analysis of your recent progress:\n\n";
-
-        if (calorieHistory.length > 0) {
-          const daysOnTarget = calorieHistory.filter(day => day.goalReached && !day.goalExceeded).length;
-          const daysExceeded = calorieHistory.filter(day => day.goalExceeded).length;
-          const adherenceRate = Math.round((daysOnTarget / calorieHistory.length) * 100);
-
-          botResponse += `📊 Calorie Goal Adherence: ${adherenceRate}%\n`;
-          botResponse += `✅ Days on target: ${daysOnTarget}\n`;
-          botResponse += `⚠️ Days exceeded: ${daysExceeded}\n\n`;
-        }
-
-        if (exerciseHistory.length > 0) {
-          const totalCaloriesBurned = exerciseHistory.reduce((sum, ex) => sum + ex.caloriesBurned, 0);
-          const totalMinutes = exerciseHistory.reduce((sum, ex) => sum + ex.duration, 0);
-          const uniqueExercises = new Set(exerciseHistory.map(ex => ex.name)).size;
-
-          botResponse += `🔥 Total calories burned: ${totalCaloriesBurned}\n`;
-          botResponse += `⏱️ Total workout time: ${totalMinutes} minutes\n`;
-          botResponse += `🏋️ Unique exercises performed: ${uniqueExercises}\n\n`;
-        }
-
-        // Add personalized insight
-        if (profile) {
-          if (calorieHistory.length > 0 && exerciseHistory.length > 0) {
-            const recentCalorieAvg = calorieHistory.reduce((sum, day) => sum + day.totalCalories, 0) / calorieHistory.length;
-            const caloriesBurnedAvg = exerciseHistory.reduce((sum, ex) => sum + ex.caloriesBurned, 0) / 7;
-
-            if (recentCalorieAvg > (profile.dailyCalories || 2000) && caloriesBurnedAvg < 200) {
-              botResponse += "💡 Insight: Your calorie intake has been higher than your goal, while your exercise activity has been relatively low. Consider increasing your workout frequency or intensity.";
-            } else if (recentCalorieAvg < (profile.dailyCalories || 2000) * 0.8) {
-              botResponse += "💡 Insight: Your calorie intake has been significantly below your goal. Make sure you're getting enough nutrition to support your fitness journey.";
-            } else {
-              botResponse += "💡 Insight: You're maintaining a good balance between your calorie intake and exercise. Keep up the good work!";
-            }
-          }
-        }
-      } else {
-        botResponse = "I don't have enough data to analyze your progress yet. Keep tracking your meals and workouts, and I'll be able to provide insights soon!";
-      }
-    }
-    // Motivational messages
-    else if (normalizedMessage.includes("motivate") || normalizedMessage.includes("motivation") || normalizedMessage.includes("inspire")) {
-      const motivationalQuotes = [
-        "The only bad workout is the one that didn't happen. Every step counts!",
-        "Your body can stand almost anything. It's your mind that you have to convince.",
-        "Fitness is not about being better than someone else. It's about being better than you used to be.",
-        "The pain you feel today will be the strength you feel tomorrow.",
-        "Don't wish for it, work for it.",
-        "Small progress is still progress. Keep going!",
-        "The hardest lift of all is lifting your butt off the couch.",
-        "You don't have to be extreme, just consistent.",
-        "It's not about having time, it's about making time.",
-        "Your health is an investment, not an expense."
-      ];
-
-      // Select a quote based on user context
-      let selectedQuote = motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
-
-      // Personalize the motivation
-      botResponse = `Here's some motivation for you:\n\n"${selectedQuote}"\n\n`;
-
-      // Add personalized encouragement based on user data
-      if (profile) {
-        // Get recent exercise data
-        const recentExercises = await ctx.db
-          .query("exercise")
-          .withIndex("by_user_day_date", (q) => q.eq("userId", userId))
-          .filter((q) =>
-            q.and(
-              q.gte(q.field("date"), yesterday),
-              q.eq(q.field("isCompleted"), true)
-            )
-          )
-          .collect();
-
-        if (recentExercises.length > 0) {
-          botResponse += `You've completed ${recentExercises.length} exercises recently. That's great discipline! 💪`;
-        } else {
-          const plannedExercises = await ctx.db
-            .query("exercise")
-            .withIndex("by_user_day_date", (q) => q.eq("userId", userId))
-            .filter((q) =>
-              q.and(
-                q.eq(q.field("date"), today),
-                q.eq(q.field("isCompleted"), false)
-              )
-            )
-            .collect();
-
-          if (plannedExercises.length > 0) {
-            botResponse += `You have ${plannedExercises.length} exercises planned for today. You've got this! 💯`;
-          } else {
-            botResponse += "Remember, consistency is key to reaching your fitness goals. Even a small workout today is better than none! 🌟";
-          }
-        }
-      }
-    }
-    else if (normalizedMessage.includes("yesterday") || normalizedMessage.match(/last (day|night)/i)) {
-      if (normalizedMessage.includes("calorie") || normalizedMessage.includes("eat") || normalizedMessage.includes("food") || normalizedMessage.includes("meal")) {
-        const yesterdaysMeals = await ctx.db
-          .query("meal")
-          .withIndex("by_user_date", (q) =>
-            q.eq("userId", userId).eq("date", yesterday)
-          )
-          .collect();
-
-        if (yesterdaysMeals && yesterdaysMeals.length > 0) {
-          botResponse = `Here are your meals from yesterday (${new Date(yesterday).toLocaleDateString()}):\n`;
-          const mealsByType: Record<string, any[]> = {};
-          yesterdaysMeals.forEach(meal => {
-            if (!mealsByType[meal.mealType]) {
-              mealsByType[meal.mealType] = [];
-            }
-            mealsByType[meal.mealType].push(meal);
-          });
-          for (const [type, meals] of Object.entries(mealsByType)) {
-            botResponse += `\n${type.charAt(0).toUpperCase() + type.slice(1)}:\n`;
-            meals.forEach(meal => {
-              botResponse += `- ${meal.name} (${meal.calories} cal, P: ${meal.protein}g, C: ${meal.carbs}g, F: ${meal.fat}g)\n`;
-            });
-          }
-          const totalCalories = yesterdaysMeals.reduce((sum, meal) => sum + meal.calories, 0);
-          botResponse += `\nTotal calories: ${totalCalories}`;
-        } else {
-          botResponse = "I don't have any meal records for yesterday.";
-        }
-      } else if (normalizedMessage.includes("workout") || normalizedMessage.includes("exercise")) {
-        const yesterdaysExercises = await ctx.db
-          .query("exercise")
-          .withIndex("by_user_day_date", (q) =>
-            q.eq("userId", userId)
-          )
-          .filter((q) => q.eq(q.field("date"), yesterday))
-          .collect();
-
-        if (yesterdaysExercises && yesterdaysExercises.length > 0) {
-          const completedExercises = yesterdaysExercises.filter(ex => ex.isCompleted);
-
-          botResponse = `Here's your workout information from yesterday (${new Date(yesterday).toLocaleDateString()}):\n`;
-
-          if (completedExercises.length > 0) {
-            botResponse += `\nCompleted Exercises (${completedExercises.length}):\n`;
-            completedExercises.forEach(ex => {
-              botResponse += `- ${ex.name} (${ex.duration} min, ${ex.caloriesBurned} cal)\n`;
-            });
-
-            // Calculate total calories burned
-            const totalCaloriesBurned = completedExercises.reduce((sum, ex) => sum + ex.caloriesBurned, 0);
-            botResponse += `\nTotal calories burned: ${totalCaloriesBurned}`;
-          } else {
-            botResponse += "\nYou didn't complete any exercises yesterday.";
-          }
-        } else {
-          botResponse = "I don't have any exercise records for yesterday.";
-        }
-      } else {
-        botResponse = "What would you like to know about yesterday? You can ask about your meals or workouts.";
-      }
-    }
-    // Personalized fitness tips
-    else if (normalizedMessage.includes("tip") || normalizedMessage.includes("advice") || normalizedMessage.includes("suggest")) {
-      // Generate personalized fitness tip based on user data
-      const generalTips = [
-        "Try to drink at least 8 glasses of water daily to stay hydrated.",
-        "Aim for 7-9 hours of quality sleep to support recovery and performance.",
-        "Include protein in every meal to support muscle recovery and growth.",
-        "Don't forget to stretch before and after your workouts to prevent injuries.",
-        "Try to incorporate both cardio and strength training in your fitness routine.",
-        "Small, consistent efforts lead to big results over time.",
-        "Track your progress regularly to stay motivated and see how far you've come.",
-        "Rest days are just as important as workout days for recovery and growth.",
-        "Try to eat a variety of colorful fruits and vegetables for essential nutrients.",
-        "Set specific, measurable, achievable, relevant, and time-bound (SMART) fitness goals."
-      ];
-
-      // Select a base tip
-      let selectedTip = generalTips[Math.floor(Math.random() * generalTips.length)];
-      botResponse = `Here's a fitness tip for you:\n\n${selectedTip}\n\n`;
-
-      // Add personalized advice based on user data
-      if (profile) {
-        // Get recent calorie data
-        const recentCalorieData = await ctx.db
-          .query("calorieGoalTracking")
-          .withIndex("by_user_date", (q) => q.eq("userId", userId))
-          .order("desc")
-          .take(3);
-
-        // Get recent exercise data
-        const recentExercises = await ctx.db
-          .query("exercise")
-          .withIndex("by_user_day_date", (q) => q.eq("userId", userId))
-          .filter((q) => q.gte(q.field("date"), lastWeek))
-          .collect();
-
-        // Personalized tip based on data
-        if (recentCalorieData.length > 0) {
-          const exceededDays = recentCalorieData.filter(day => day.goalExceeded).length;
-
-          if (exceededDays >= 2) {
-            botResponse += "I've noticed you've exceeded your calorie goals recently. Try meal prepping or using smaller plates to help with portion control. 🍽️";
-          } else if (recentCalorieData.every(day => day.totalCalories < (profile.dailyCalories || 2000) * 0.8)) {
-            botResponse += "I've noticed you've been consistently under your calorie goals. Make sure you're getting enough nutrition to fuel your workouts and recovery. 🥗";
-          }
-        }
-
-        if (recentExercises.length > 0) {
-          const exerciseTypes = new Set(recentExercises.map(ex => ex.type));
-
-          if (!exerciseTypes.has("cardio")) {
-            botResponse += "\n\nConsider adding some cardio exercises to your routine for heart health and endurance. Even a 20-minute brisk walk can make a difference! 🏃‍♂️";
-          } else if (!exerciseTypes.has("strength")) {
-            botResponse += "\n\nYou might benefit from adding strength training to your routine. It helps build muscle, increase metabolism, and improve overall fitness. 🏋️‍♀️";
-          }
-        }
-      }
-    }
-    // Food calorie questions
-    else if (normalizedMessage.includes("highest calorie") || normalizedMessage.includes("most calories") ||
-             normalizedMessage.includes("high calorie") || normalizedMessage.includes("highest cal")) {
-      // Get foods sorted by calories (highest first)
-      const highCalorieFoods = await ctx.db
-        .query("foodMacros")
-        .collect();
-
-      if (highCalorieFoods.length > 0) {
-        // Sort by calories in descending order
-        highCalorieFoods.sort((a, b) => b.calories - a.calories);
-
-        // Take top 5 foods
-        const topFoods = highCalorieFoods.slice(0, 5);
-
-        botResponse = `Here are the foods with the highest calories in our database:\n\n`;
-        topFoods.forEach((food, index) => {
-          botResponse += `${index + 1}. ${food.name} - ${food.calories} calories per serving\n`;
+        response = `Here are your personalized meal recommendations, ${userName}:\n\n`;
+        mealRecommendations.forEach((rec) => {
+          response +=
+            `- ${rec.name}\n` +
+            `  Calories: ${rec.calories}\n` +
+            `  Protein: ${rec.protein}g\n` +
+            `  Carbs: ${rec.carbs}g\n` +
+            `  Fat: ${rec.fat}g\n` +
+            `  Why: ${rec.reason}\n\n`;
         });
 
-        botResponse += `\nThese high-calorie foods can be useful for weight gain goals or for refueling after intense workouts.`;
-      } else {
-        botResponse = "I don't have any food data available at the moment. Please check back later.";
-      }
-    }
-    // Weight gain specific recommendations
-    else if (normalizedMessage.includes("weight gain") || normalizedMessage.includes("gain weight") || normalizedMessage.includes("build muscle")) {
-      // Determine if the query is about exercises, meals, or both
-      const isExerciseQuery = normalizedMessage.includes("exercise") || normalizedMessage.includes("workout");
-      const isMealQuery = normalizedMessage.includes("meal") || normalizedMessage.includes("food") || normalizedMessage.includes("eat");
-
-      // If neither is specified, assume both
-      const includeExercise = isExerciseQuery || (!isExerciseQuery && !isMealQuery);
-      const includeMeal = isMealQuery || (!isExerciseQuery && !isMealQuery);
-
-      botResponse = "Here are my recommendations for weight gain:\n\n";
-
-      // Add calorie surplus advice based on profile if available
-      if (profile && profile.dailyCalories) {
-        const weightGainCalories = Math.round(profile.dailyCalories * 1.15); // 15% surplus
-        botResponse += `Based on your profile, you should aim for about ${weightGainCalories} calories daily (a surplus of ${weightGainCalories - profile.dailyCalories} calories) to support weight gain.\n\n`;
-      } else {
-        botResponse += "For weight gain, you generally need to consume 300-500 calories above your maintenance level daily.\n\n";
-      }
-
-      // Add meal recommendations if requested
-      if (includeMeal) {
-        // Get food recommendations for weight gain
-        const foodMacros = await ctx.db
-          .query("foodMacros")
-          .collect();
-
-        if (foodMacros.length > 0) {
-          // Filter for high protein foods
-          const highProteinFoods = foodMacros
-            .filter(food => food.protein > 20)
-            .sort(() => 0.5 - Math.random())
-            .slice(0, 3);
-
-          // Filter for calorie-rich carbs
-          const calorieRichCarbs = foodMacros
-            .filter(food => food.category === "carb" && food.calories > 100)
-            .sort(() => 0.5 - Math.random())
-            .slice(0, 3);
-
-          // Filter for healthy fats
-          const healthyFats = foodMacros
-            .filter(food => food.category === "fat" && food.calories > 100)
-            .sort(() => 0.5 - Math.random())
-            .slice(0, 2);
-
-          botResponse += "🍽️ MEAL RECOMMENDATIONS FOR WEIGHT GAIN:\n\n";
-
-          botResponse += "High-Protein Foods (essential for muscle building):\n";
-          highProteinFoods.forEach(food => {
-            botResponse += `- ${food.name} (${food.calories} cal, ${food.protein}g protein)\n`;
-          });
-
-          botResponse += "\nCalorie-Rich Carbohydrates (for energy and surplus calories):\n";
-          calorieRichCarbs.forEach(food => {
-            botResponse += `- ${food.name} (${food.calories} cal, ${food.carbs}g carbs)\n`;
-          });
-
-          botResponse += "\nHealthy Fats (calorie-dense for weight gain):\n";
-          healthyFats.forEach(food => {
-            botResponse += `- ${food.name} (${food.calories} cal, ${food.fat}g fat)\n`;
-          });
-
-          botResponse += "\nSample Weight Gain Meals:\n";
-          botResponse += "- Breakfast: Greek yogurt with granola, banana, and peanut butter (~600 cal)\n";
-          botResponse += "- Lunch: Grilled chicken breast with quinoa, avocado, and sweet potatoes (~750 cal)\n";
-          botResponse += "- Dinner: Salmon with mashed potatoes and olive oil (~800 cal)\n";
-          botResponse += "- Snack: Protein shake with whole milk and a handful of nuts (~400 cal)\n\n";
-
-          botResponse += "💡 Meal Tips:\n";
-          botResponse += "- Eat 4-6 meals per day instead of 3 larger ones\n";
-          botResponse += "- Have a protein-rich meal within 1-2 hours after workouts\n";
-          botResponse += "- Include protein in every meal (aim for 1.6-2.2g per kg of bodyweight daily)\n";
-          botResponse += "- Use calorie-dense toppings: olive oil, cheese, nuts, seeds\n";
-        } else {
-          botResponse += "I don't have specific food data available, but for weight gain, focus on calorie-dense foods rich in protein, healthy fats, and complex carbohydrates.\n\n";
-        }
-      }
-
-      // Add exercise recommendations if requested
-      if (includeExercise) {
-        botResponse += "\n💪 EXERCISE RECOMMENDATIONS FOR WEIGHT GAIN:\n\n";
-        botResponse += "Focus on compound strength exercises that target multiple muscle groups:\n\n";
-
-        // Get a random day from the weight gain workouts
-        const days = ["Monday", "Tuesday", "Thursday", "Friday", "Saturday"];
-        const randomDay = days[Math.floor(Math.random() * days.length)];
-        const workoutDay = weightGainWorkouts.find(workout => workout.day === randomDay);
-
-        if (workoutDay) {
-          botResponse += `Sample ${workoutDay.day} Workout:\n`;
-          workoutDay.exercises.forEach(exercise => {
-            if (exercise.type === "strength") {
-              botResponse += `- ${exercise.name} (${exercise.duration} min)\n`;
-            }
-          });
-        }
-
-        botResponse += "\n💡 Workout Tips:\n";
-        botResponse += "- Focus on heavy compound movements (squats, deadlifts, bench press)\n";
-        botResponse += "- Aim for 3-4 strength training sessions per week\n";
-        botResponse += "- Prioritize progressive overload (gradually increasing weight)\n";
-        botResponse += "- Keep cardio moderate (1-2 sessions weekly) to avoid excessive calorie burn\n";
-        botResponse += "- Allow 48 hours of recovery for each muscle group\n";
-        botResponse += "- Ensure adequate sleep (7-9 hours) for muscle recovery and growth\n";
-      }
-
-      // General advice for both
-      botResponse += "\n🔑 KEYS TO SUCCESSFUL WEIGHT GAIN:\n";
-      botResponse += "1. Maintain a consistent calorie surplus\n";
-      botResponse += "2. Prioritize protein intake for muscle building\n";
-      botResponse += "3. Progressive overload in your strength training\n";
-      botResponse += "4. Allow adequate recovery between workouts\n";
-      botResponse += "5. Be patient and consistent - aim for 0.25-0.5kg gain per week\n";
-
-      // Suggest tracking
-      botResponse += "\nRemember to track your progress in the app to see what's working for you!";
-    }
-    // Lowest calorie foods
-    else if (normalizedMessage.includes("lowest calorie") || normalizedMessage.includes("least calories") ||
-             normalizedMessage.includes("low calorie") || normalizedMessage.includes("lowest cal")) {
-      // Get foods sorted by calories (lowest first)
-      const lowCalorieFoods = await ctx.db
-        .query("foodMacros")
-        .collect();
-
-      if (lowCalorieFoods.length > 0) {
-        // Sort by calories in ascending order
-        lowCalorieFoods.sort((a, b) => a.calories - b.calories);
-
-        // Take top 5 foods
-        const topFoods = lowCalorieFoods.slice(0, 5);
-
-        botResponse = `Here are the foods with the lowest calories in our database:\n\n`;
-        topFoods.forEach((food, index) => {
-          botResponse += `${index + 1}. ${food.name} - ${food.calories} calories per serving\n`;
+        // Add complementary workout suggestions
+        response += `\n💪 And here are some workout suggestions to complement your meals, ${userName}:\n`;
+        const { exercises } = getGoalBasedWorkoutPlan(
+          profile,
+          historicalWorkouts
+        );
+        exercises.forEach((exercise) => {
+          response += `- ${exercise.name} (${exercise.duration} mins)\n`;
         });
-
-        botResponse += `\nThese low-calorie foods can be great options for weight loss goals or for adding volume to your meals without adding many calories.`;
-      } else {
-        botResponse = "I don't have any food data available at the moment. Please check back later.";
       }
     }
-    // Proactive suggestions
-    else if (normalizedMessage.includes("what should i") || normalizedMessage.includes("recommend") || normalizedMessage.includes("suggestion")) {
-      if (normalizedMessage.includes("eat") || normalizedMessage.includes("meal") || normalizedMessage.includes("food")) {
-        // Get food recommendations based on user's profile
-        const foodMacros = await ctx.db
-          .query("foodMacros")
-          .collect();
-
-        if (foodMacros.length > 0 && profile) {
-          let recommendedFoods = [];
-
-          // Filter foods based on user's needs
-          if (profile.dailyCalories) {
-            // Determine if user needs more protein, carbs, or balanced meals
-            const todaysMeals = await ctx.db
-              .query("meal")
-              .withIndex("by_user_date", (q) =>
-                q.eq("userId", userId).eq("date", today)
-              )
-              .collect();
-
-            let totalProtein = 0;
-            let totalCarbs = 0;
-            let totalFat = 0;
-
-            if (todaysMeals.length > 0) {
-              totalProtein = todaysMeals.reduce((sum, meal) => sum + meal.protein, 0);
-              totalCarbs = todaysMeals.reduce((sum, meal) => sum + meal.carbs, 0);
-              totalFat = todaysMeals.reduce((sum, meal) => sum + meal.fat, 0);
-            }
-
-            // Determine what macros the user needs more of
-            const proteinGoal = (profile.dailyCalories * 0.3) / 4; // 30% of calories from protein
-            const carbsGoal = (profile.dailyCalories * 0.45) / 4; // 45% of calories from carbs
-            const fatGoal = (profile.dailyCalories * 0.25) / 9; // 25% of calories from fat
-
-            let macroNeeded = "balanced";
-            if (totalProtein < proteinGoal * 0.7) {
-              macroNeeded = "protein";
-            } else if (totalCarbs < carbsGoal * 0.7) {
-              macroNeeded = "carbs";
-            } else if (totalFat < fatGoal * 0.7) {
-              macroNeeded = "fat";
-            }
-            recommendedFoods = foodMacros
-              .filter(food => food.category === macroNeeded || !food.category)
-              .sort(() => 0.5 - Math.random())
-              .slice(0, 3);
-
-            botResponse = `Based on your nutritional needs today, here are some food recommendations:\n\n`;
-            recommendedFoods.forEach(food => {
-              botResponse += `- ${food.name} (${food.calories} cal, P: ${food.protein}g, C: ${food.carbs}g, F: ${food.fat}g)\n`;
-            });
-
-            botResponse += `\nThese foods are rich in ${macroNeeded}, which would help balance your macronutrient intake for today.`;
-          } else {
-            recommendedFoods = foodMacros
-              .sort(() => 0.5 - Math.random())
-              .slice(0, 3);
-
-            botResponse = `Here are some food recommendations:\n\n`;
-            recommendedFoods.forEach(food => {
-              botResponse += `- ${food.name} (${food.calories} cal, P: ${food.protein}g, C: ${food.carbs}g, F: ${food.fat}g)\n`;
-            });
-          }
-        } else {
-          botResponse = "I don't have enough food data to make personalized recommendations yet.";
-        }
-      } else if (normalizedMessage.includes("workout") || normalizedMessage.includes("exercise")) {
-        const exerciseHistory = await ctx.db
-          .query("exercise")
-          .withIndex("by_user_day_date", (q) => q.eq("userId", userId))
-          .filter((q) => q.gte(q.field("date"), lastWeek))
-          .collect();
-        type ExerciseType = "cardio" | "strength" | "flexibility";
-        type Exercise = {
-          name: string;
-          duration: number;
-          caloriesBurned: number;
-        };
-        let recommendedType: ExerciseType = "cardio";
-
-        if (exerciseHistory.length > 0) {
-          const exerciseTypes = exerciseHistory.map(ex => ex.type);
-          const cardioCount = exerciseTypes.filter(type => type === "cardio").length;
-          const strengthCount = exerciseTypes.filter(type => type === "strength").length;
-          recommendedType = cardioCount <= strengthCount ? "cardio" : "strength";
-        }
-        const exerciseRecommendations: Record<ExerciseType, Exercise[]> = {
-          cardio: [
-            { name: "Running", duration: 30, caloriesBurned: 300 },
-            { name: "Cycling", duration: 30, caloriesBurned: 250 },
-            { name: "Jumping Rope", duration: 20, caloriesBurned: 200 },
-            { name: "Swimming", duration: 30, caloriesBurned: 350 },
-            { name: "Elliptical", duration: 30, caloriesBurned: 270 }
-          ],
-          strength: [
-            { name: "Push-ups", duration: 15, caloriesBurned: 100 },
-            { name: "Squats", duration: 20, caloriesBurned: 150 },
-            { name: "Deadlifts", duration: 20, caloriesBurned: 180 },
-            { name: "Pull-ups", duration: 15, caloriesBurned: 120 },
-            { name: "Bench Press", duration: 20, caloriesBurned: 160 }
-          ],
-          flexibility: [
-            { name: "Yoga", duration: 30, caloriesBurned: 150 },
-            { name: "Stretching", duration: 20, caloriesBurned: 80 },
-            { name: "Pilates", duration: 30, caloriesBurned: 170 }
-          ]
-        };
-        const selectedExercises = exerciseRecommendations[recommendedType]
-          .sort(() => 0.5 - Math.random())
-          .slice(0, 3);
-
-        botResponse = `Based on your recent activity, I recommend focusing on ${recommendedType} exercises today:\n\n`;
-        selectedExercises.forEach((ex: Exercise) => {
-          botResponse += `- ${ex.name} (${ex.duration} min, ~${ex.caloriesBurned} calories)\n`;
-        });
-        // Only add flexibility exercise if the recommended type is not already flexibility
-        if (recommendedType === "cardio" || recommendedType === "strength") {
-          const flexExercise = exerciseRecommendations.flexibility[Math.floor(Math.random() * exerciseRecommendations.flexibility.length)];
-          botResponse += `\nAlso, consider adding this for flexibility:\n- ${flexExercise.name} (${flexExercise.duration} min, ~${flexExercise.caloriesBurned} calories)`;
-        }
+    // Handle progress options
+    else if (
+      MENU_OPTIONS.PROGRESS.choices.some((choice) =>
+        message.includes(choice.toLowerCase())
+      )
+    ) {
+      if (historicalWorkouts.length === 0 && historicalMeals.length === 0) {
+        response = `Hey ${userName}! I don't see any progress data yet. Let's start tracking your workouts and meals to see your amazing progress!`;
       } else {
-        botResponse = "I can recommend meals or workouts based on your profile and history. Just ask for a meal or workout recommendation!";
-      }
-    }
-    // Advanced data query handling - this section handles more complex queries
-    else {
-      // Try to understand what data the user is asking for
-      const isAskingAboutFood = normalizedMessage.includes("food") ||
-                               normalizedMessage.includes("nutrition") ||
-                               normalizedMessage.includes("nutrient") ||
-                               normalizedMessage.includes("macro");
+        response = `Here's your progress report, ${userName}:\n\n`;
 
-      const isAskingAboutExercise = normalizedMessage.includes("exercise history") ||
-                                   normalizedMessage.includes("workout history") ||
-                                   normalizedMessage.includes("past workout") ||
-                                   normalizedMessage.includes("past exercise") ||
-                                   (normalizedMessage.includes("show") && normalizedMessage.includes("exercise")) ||
-                                   (normalizedMessage.includes("my") && normalizedMessage.includes("exercise"));
-
-      const isAskingAboutProgress = normalizedMessage.includes("progress") ||
-                                   normalizedMessage.includes("improvement") ||
-                                   normalizedMessage.includes("history") ||
-                                   normalizedMessage.includes("trend") ||
-                                   (normalizedMessage.includes("how") && normalizedMessage.includes("doing")) ||
-                                   (normalizedMessage.includes("how's") && normalizedMessage.includes("my")) ||
-                                   (normalizedMessage.includes("how") && normalizedMessage.includes("my") && normalizedMessage.includes("look"));
-
-      const isAskingAboutCalories = normalizedMessage.includes("calorie history") ||
-                                   normalizedMessage.includes("calorie trend") ||
-                                   normalizedMessage.includes("calorie intake") ||
-                                   (normalizedMessage.includes("my") && normalizedMessage.includes("calorie")) ||
-                                   (normalizedMessage.includes("about") && normalizedMessage.includes("calorie"));
-
-      // Handle food-related queries
-      if (isAskingAboutFood) {
-        // Get all food data from the database
-        const allFoods = await ctx.db.query("foodMacros").collect();
-
-        if (allFoods.length > 0) {
-          // Check for specific food queries
-          if (normalizedMessage.includes("protein") || normalizedMessage.includes("high protein") || normalizedMessage.includes("high-protein")) {
-            const highProteinFoods = allFoods
-              .filter(food => food.protein > 20)
-              .sort((a, b) => b.protein - a.protein)
-              .slice(0, 5);
-
-            botResponse = "Here are some high-protein foods:\n\n";
-            highProteinFoods.forEach(food => {
-              botResponse += `- ${food.name}: ${food.protein}g protein (${food.calories} calories)\n`;
-            });
-          }
-          else if (normalizedMessage.includes("carb") || normalizedMessage.includes("carbohydrate")) {
-            const highCarbFoods = allFoods
-              .filter(food => food.carbs > 20)
-              .sort((a, b) => b.carbs - a.carbs)
-              .slice(0, 5);
-
-            botResponse = "Here are some high-carbohydrate foods:\n\n";
-            highCarbFoods.forEach(food => {
-              botResponse += `- ${food.name}: ${food.carbs}g carbs (${food.calories} calories)\n`;
-            });
-          }
-          else if (normalizedMessage.includes("fat") || normalizedMessage.includes("healthy fat")) {
-            const healthyFats = allFoods
-              .filter(food => food.fat > 10)
-              .sort((a, b) => b.fat - a.fat)
-              .slice(0, 5);
-
-            botResponse = "Here are some healthy fat sources:\n\n";
-            healthyFats.forEach(food => {
-              botResponse += `- ${food.name}: ${food.fat}g fat (${food.calories} calories)\n`;
-            });
-          }
-          else {
-            // General food database query
-            const randomFoods = [...allFoods]
-              .sort(() => 0.5 - Math.random())
-              .slice(0, 5);
-
-            botResponse = "Here are some foods from our database:\n\n";
-            randomFoods.forEach(food => {
-              botResponse += `- ${food.name}: ${food.calories} calories (P: ${food.protein}g, C: ${food.carbs}g, F: ${food.fat}g)\n`;
-            });
-
-            botResponse += "\n\nYou can ask about specific nutrients like protein, carbs, or fats.";
-          }
-        } else {
-          botResponse = "I don't have any food data available at the moment.";
-        }
-      }
-      // Handle exercise history queries
-      else if (isAskingAboutExercise) {
-        // Get exercise history for the past 30 days
-        const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0];
-
-        const exerciseHistory = await ctx.db
-          .query("exercise")
-          .withIndex("by_user_day_date", (q) => q.eq("userId", userId))
-          .filter((q) =>
-            q.and(
-              q.gte(q.field("date"), thirtyDaysAgo),
-              q.eq(q.field("isCompleted"), true)
-            )
-          )
-          .collect();
-
-        if (exerciseHistory.length > 0) {
-          // Group exercises by type
-          const exercisesByType: Record<string, any[]> = {};
-          exerciseHistory.forEach(ex => {
-            if (!exercisesByType[ex.type]) {
-              exercisesByType[ex.type] = [];
-            }
-            exercisesByType[ex.type].push(ex);
-          });
-
-          botResponse = `Here's your exercise history for the past 30 days:\n\n`;
-
-          // Calculate stats for each type
-          for (const [type, exercises] of Object.entries(exercisesByType)) {
-            const totalDuration = exercises.reduce((sum, ex) => sum + ex.duration, 0);
-            const totalCalories = exercises.reduce((sum, ex) => sum + ex.caloriesBurned, 0);
-            const uniqueExercises = new Set(exercises.map(ex => ex.name)).size;
-
-            botResponse += `${type.charAt(0).toUpperCase() + type.slice(1)} Exercises:\n`;
-            botResponse += `- Total workouts: ${exercises.length}\n`;
-            botResponse += `- Total duration: ${totalDuration} minutes\n`;
-            botResponse += `- Calories burned: ${totalCalories}\n`;
-            botResponse += `- Unique exercises: ${uniqueExercises}\n\n`;
-          }
-
-          // Add most frequent exercises
-          const exerciseCounts: Record<string, number> = {};
-          exerciseHistory.forEach(ex => {
-            exerciseCounts[ex.name] = (exerciseCounts[ex.name] || 0) + 1;
-          });
-
-          const mostFrequent = Object.entries(exerciseCounts)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 3);
-
-          botResponse += "Your most frequent exercises:\n";
-          mostFrequent.forEach(([name, count]) => {
-            botResponse += `- ${name}: ${count} times\n`;
-          });
-        } else {
-          botResponse = "You don't have any completed exercises in the past 30 days. Start working out to build your exercise history!";
-        }
-      }
-      // Handle calorie history queries
-      else if (isAskingAboutCalories) {
-        // Get calorie tracking data for the past 14 days
-        const twoWeeksAgo = new Date(Date.now() - 14 * 86400000).toISOString().split("T")[0];
-
-        const calorieHistory = await ctx.db
-          .query("calorieGoalTracking")
-          .withIndex("by_user_date", (q) => q.eq("userId", userId))
-          .filter((q) => q.gte(q.field("date"), twoWeeksAgo))
-          .collect();
-
-        if (calorieHistory.length > 0) {
-          // Sort by date
-          calorieHistory.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-          const averageCalories = Math.round(
-            calorieHistory.reduce((sum, day) => sum + day.totalCalories, 0) / calorieHistory.length
+        // Workout progress
+        if (historicalWorkouts.length > 0) {
+          const totalWorkouts = historicalWorkouts.length;
+          const totalCaloriesBurned = historicalWorkouts.reduce(
+            (sum, ex) => sum + ex.caloriesBurned,
+            0
           );
+          const workoutTypes = new Set(historicalWorkouts.map((ex) => ex.type));
 
-          const daysOnTarget = calorieHistory.filter(day =>
-            day.totalCalories >= day.dailyCalorieGoal * 0.9 &&
-            day.totalCalories <= day.dailyCalorieGoal * 1.1
-          ).length;
-
-          botResponse = `Here's your calorie intake history for the past 14 days:\n\n`;
-          botResponse += `Average daily calories: ${averageCalories}\n`;
-          botResponse += `Days on target (±10%): ${daysOnTarget} out of ${calorieHistory.length}\n\n`;
-
-          botResponse += "Recent daily intake:\n";
-          // Show the last 7 days or fewer if not enough data
-          const recentDays = calorieHistory.slice(-7);
-          recentDays.forEach(day => {
-            const date = new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            const percentage = Math.round((day.totalCalories / day.dailyCalorieGoal) * 100);
-            botResponse += `- ${date}: ${day.totalCalories} cal (${percentage}% of goal)\n`;
-          });
-        } else {
-          botResponse = "I don't have any calorie tracking data for you yet. Start logging your meals to track your calorie intake!";
+          response +=
+            "Workout Progress:\n" +
+            `- Total workouts: ${totalWorkouts}\n` +
+            `- Total calories burned: ${totalCaloriesBurned}\n` +
+            `- Types of workouts: ${Array.from(workoutTypes).join(", ")}\n\n`;
         }
-      }
-      // Handle progress queries
-      else if (isAskingAboutProgress) {
-        // Get both exercise and calorie data
-        const twoWeeksAgo = new Date(Date.now() - 14 * 86400000).toISOString().split("T")[0];
 
-        const [calorieHistory, exerciseHistory] = await Promise.all([
-          ctx.db
-            .query("calorieGoalTracking")
-            .withIndex("by_user_date", (q) => q.eq("userId", userId))
-            .filter((q) => q.gte(q.field("date"), twoWeeksAgo))
-            .collect(),
-          ctx.db
-            .query("exercise")
-            .withIndex("by_user_day_date", (q) => q.eq("userId", userId))
-            .filter((q) =>
-              q.and(
-                q.gte(q.field("date"), twoWeeksAgo),
-                q.eq(q.field("isCompleted"), true)
-              )
-            )
-            .collect()
-        ]);
+        // Nutrition progress
+        if (historicalMeals.length > 0) {
+          const avgCalories =
+            historicalMeals.reduce((sum, meal) => sum + meal.calories, 0) /
+            new Set(historicalMeals.map((m) => m.date)).size;
 
-        if (calorieHistory.length > 0 || exerciseHistory.length > 0) {
-          botResponse = "Here's a summary of your progress over the past 2 weeks:\n\n";
-
-          if (calorieHistory.length > 0) {
-            const averageCalories = Math.round(
-              calorieHistory.reduce((sum, day) => sum + day.totalCalories, 0) / calorieHistory.length
-            );
-
-            const calorieGoal = calorieHistory[0].dailyCalorieGoal;
-            const caloriePercentage = Math.round((averageCalories / calorieGoal) * 100);
-
-            botResponse += `📊 Nutrition Progress:\n`;
-            botResponse += `- Average daily calories: ${averageCalories} (${caloriePercentage}% of goal)\n`;
-            botResponse += `- Days tracked: ${calorieHistory.length} out of 14\n\n`;
-          }
-
-          if (exerciseHistory.length > 0) {
-            const totalWorkouts = exerciseHistory.length;
-            const totalCaloriesBurned = exerciseHistory.reduce((sum, ex) => sum + ex.caloriesBurned, 0);
-            const totalDuration = exerciseHistory.reduce((sum, ex) => sum + ex.duration, 0);
-
-            botResponse += `💪 Fitness Progress:\n`;
-            botResponse += `- Workouts completed: ${totalWorkouts}\n`;
-            botResponse += `- Total workout time: ${totalDuration} minutes\n`;
-            botResponse += `- Calories burned: ${totalCaloriesBurned}\n\n`;
-
-            // Calculate workout frequency
-            const daysWithWorkouts = new Set(exerciseHistory.map(ex => ex.date)).size;
-            const workoutFrequency = Math.round((daysWithWorkouts / 14) * 100);
-
-            botResponse += `- Workout frequency: ${workoutFrequency}% of days\n\n`;
-          }
-
-          // Add personalized insights
-          if (profile) {
-            botResponse += "💡 Personalized Insights:\n";
-
-            if (calorieHistory.length > 0 && exerciseHistory.length > 0) {
-              const averageCalories = calorieHistory.reduce((sum, day) => sum + day.totalCalories, 0) / calorieHistory.length;
-              const caloriesBurnedAvg = exerciseHistory.reduce((sum, ex) => sum + ex.caloriesBurned, 0) / 14;
-
-              if (averageCalories > (profile.dailyCalories || 2000) && caloriesBurnedAvg < 200) {
-                botResponse += "- Your calorie intake has been higher than your goal, while your exercise activity has been relatively low. Consider increasing your workout frequency or intensity.\n";
-              } else if (averageCalories < (profile.dailyCalories || 2000) * 0.8) {
-                botResponse += "- Your calorie intake has been significantly below your goal. Make sure you're getting enough nutrition to support your fitness journey.\n";
-              } else {
-                botResponse += "- You're maintaining a good balance between your calorie intake and exercise. Keep up the good work!\n";
-              }
-            } else if (calorieHistory.length === 0 && exerciseHistory.length > 0) {
-              botResponse += "- You're tracking your workouts but not your nutrition. For best results, track both your exercise and food intake.\n";
-            } else if (calorieHistory.length > 0 && exerciseHistory.length === 0) {
-              botResponse += "- You're tracking your nutrition but not your workouts. Adding regular exercise will help you reach your fitness goals faster.\n";
-            }
-          }
-        } else {
-          botResponse = "I don't have enough data to analyze your progress yet. Start tracking your meals and workouts, and I'll be able to provide insights soon!";
-        }
-      }
-      // Default response for unrecognized queries
-      else {
-        botResponse = "I'm not sure how to help with that specific question. I can provide information about your profile (age, weight, height), calories, meals, and workouts.";
-
-        if (conversationContext.mentionedWorkout) {
-          botResponse += "\n\nSince we were talking about workouts, you might want to ask about your exercise history or get a workout recommendation.";
-        } else if (conversationContext.mentionedMeal) {
-          botResponse += "\n\nSince we were talking about meals, you might want to ask about your meal history or get a food recommendation.";
-        } else if (conversationContext.mentionedProgress) {
-          botResponse += "\n\nSince we were talking about progress, you might want to ask for insights about your fitness journey or some motivational tips.";
-        } else {
-          botResponse += "\n\nYou can ask me about:";
-          botResponse += "\n- Your profile information";
-          botResponse += "\n- Today's meals and calories";
-          botResponse += "\n- Exercise recommendations";
-          botResponse += "\n- Food nutrition information";
-          botResponse += "\n- Your progress and history";
-          botResponse += "\n- Weight gain or loss recommendations";
+          response +=
+            "Nutrition Progress:\n" +
+            `- Average daily calories: ${Math.round(avgCalories)}\n` +
+            `- Most common meal types: ${getMostCommonMealTypes(historicalMeals)}\n`;
         }
       }
     }
-    const botMessageId = await ctx.db.insert("chatMessages", {
+    // Handle profile options
+    else if (
+      MENU_OPTIONS.PROFILE.choices.some((choice) =>
+        message.includes(choice.toLowerCase())
+      )
+    ) {
+      if (profile) {
+        response =
+          `Here's your profile information, ${userName}:\n\n` +
+          `- Weight: ${profile.weight || "Not set"} kg\n` +
+          `- Height: ${profile.height || "Not set"} cm\n` +
+          `- Age: ${profile.age || "Not set"} years\n` +
+          `- Activity Level: ${profile.activityLevel || "Not set"}\n` +
+          `- Daily Calorie Goal: ${profile.dailyCalories || "Not set"} calories\n` +
+          `- BMR: ${profile.bmr || "Not set"} calories`;
+      } else {
+        response = `Hi ${userName}! I don't see your profile information yet. Let's set that up so I can give you personalized recommendations!`;
+      }
+    }
+    // Default response for unrecognized input
+    else {
+      response = `I'm not sure what you're asking for, ${userName}. Type 'menu' to see what I can help you with.`;
+    }
+
+    // Store the bot's response
+    await ctx.db.insert("chatMessages", {
       userId,
-      content: botResponse,
+      content: response,
       isUserMessage: false,
       timestamp: new Date().toISOString(),
     });
 
-    return {
-      messageId: botMessageId,
-      content: botResponse
-    };
+    return response;
   },
 });
+
+// Helper function to get most common meal types
+function getMostCommonMealTypes(meals: any[]): string {
+  const mealTypes = meals.map((m) => m.mealType);
+  const counts: Record<string, number> = mealTypes.reduce(
+    (acc, type) => {
+      acc[type] = (acc[type] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([type]) => type)
+    .join(", ");
+}
+
+// Update the getGoalBasedWorkoutPlan function
+function getGoalBasedWorkoutPlan(
+  profile: Profile,
+  historicalWorkouts: any[]
+): { plan: string; exercises: Exercise[] } {
+  // Determine weight goal based on profile data
+  let weightGoal: WeightGoal = "maintain";
+  if (profile?.weight && profile?.dailyCalories) {
+    // If daily calories are significantly lower than BMR, assume weight loss goal
+    if (profile.dailyCalories < (profile.bmr || 2000) * 0.8) {
+      weightGoal = "lose";
+    }
+    // If daily calories are significantly higher than BMR, assume weight gain goal
+    else if (profile.dailyCalories > (profile.bmr || 2000) * 1.2) {
+      weightGoal = "gain";
+    }
+  }
+
+  const currentWeight = profile?.weight || 70;
+  const activityLevel = (profile?.activityLevel ||
+    "Moderately Active") as ActivityLevel;
+
+  let plan = "";
+  let exercises: Exercise[] = [];
+
+  // Determine workout intensity based on activity level
+  const intensity = {
+    Sedentary: 0.8,
+    "Lightly Active": 0.9,
+    "Moderately Active": 1.0,
+    "Very Active": 1.1,
+    "Extremely Active": 1.2,
+  }[activityLevel];
+
+  // Get workout frequency based on historical data
+  const workoutFrequency =
+    new Set(historicalWorkouts.map((w) => w.date)).size / 30; // workouts per month
+  const recommendedFrequency =
+    workoutFrequency < 0.3
+      ? "beginner"
+      : workoutFrequency < 0.6
+        ? "intermediate"
+        : "advanced";
+
+  // Use type-safe comparison for weight goal
+  switch (weightGoal) {
+    case "lose":
+      plan =
+        `Weight Loss Workout Plan (${recommendedFrequency} level):\n` +
+        `Focus: High-intensity cardio and strength training to maximize calorie burn and maintain muscle mass.\n\n`;
+
+      exercises = [
+        {
+          name: "HIIT Cardio",
+          type: "cardio",
+          duration: 30,
+          caloriesBurned: Math.round(300 * intensity),
+        },
+        {
+          name: "Full Body Strength Circuit",
+          type: "strength",
+          duration: 45,
+          caloriesBurned: Math.round(250 * intensity),
+        },
+        {
+          name: "Core Workout",
+          type: "strength",
+          duration: 20,
+          caloriesBurned: Math.round(150 * intensity),
+        },
+      ];
+      break;
+
+    case "gain":
+      plan =
+        `Muscle Gain Workout Plan (${recommendedFrequency} level):\n` +
+        `Focus: Progressive overload and compound movements to build muscle mass.\n\n`;
+
+      exercises = [
+        {
+          name: "Heavy Compound Lifts",
+          type: "strength",
+          duration: 45,
+          caloriesBurned: Math.round(200 * intensity),
+        },
+        {
+          name: "Isolation Exercises",
+          type: "strength",
+          duration: 30,
+          caloriesBurned: Math.round(150 * intensity),
+        },
+        {
+          name: "Light Cardio",
+          type: "cardio",
+          duration: 20,
+          caloriesBurned: Math.round(100 * intensity),
+        },
+      ];
+      break;
+
+    default: // maintain
+      plan =
+        `Maintenance Workout Plan (${recommendedFrequency} level):\n` +
+        `Focus: Balanced mix of strength, cardio, and flexibility for overall fitness.\n\n`;
+
+      exercises = [
+        {
+          name: "Moderate Cardio",
+          type: "cardio",
+          duration: 30,
+          caloriesBurned: Math.round(200 * intensity),
+        },
+        {
+          name: "Full Body Strength",
+          type: "strength",
+          duration: 40,
+          caloriesBurned: Math.round(180 * intensity),
+        },
+        {
+          name: "Flexibility Training",
+          type: "flexibility",
+          duration: 20,
+          caloriesBurned: Math.round(100 * intensity),
+        },
+      ];
+  }
+
+  return { plan, exercises };
+}
+
+function getGoalBasedMealPlan(
+  profile: any,
+  needs: string[],
+  goals: any
+): MealRecommendation[] {
+  const weightGoal = profile?.weightGoal || "maintain";
+  const currentWeight = profile?.weight || 70;
+  const activityLevel = profile?.activityLevel || "moderate";
+
+  let recommendations: MealRecommendation[] = [];
+  const calorieDeficit =
+    weightGoal === "lose" ? 500 : weightGoal === "gain" ? -500 : 0;
+  const adjustedCalories = goals.calories + calorieDeficit;
+
+  // Base recommendations on weight goal
+  if (weightGoal === "lose") {
+    recommendations.push({
+      name: "High-Protein Salad Bowl",
+      calories: 400,
+      protein: 35,
+      carbs: 25,
+      fat: 15,
+      category: "weight_loss",
+      reason:
+        "Low-calorie, high-protein meal to support fat loss while maintaining muscle",
+    });
+    recommendations.push({
+      name: "Grilled Chicken with Vegetables",
+      calories: 450,
+      protein: 40,
+      carbs: 30,
+      fat: 12,
+      category: "weight_loss",
+      reason: "Lean protein with fiber-rich vegetables for satiety",
+    });
+  } else if (weightGoal === "gain") {
+    recommendations.push({
+      name: "Protein-Packed Smoothie Bowl",
+      calories: 600,
+      protein: 30,
+      carbs: 70,
+      fat: 20,
+      category: "muscle_gain",
+      reason: "Calorie-dense meal with balanced macros for muscle growth",
+    });
+    recommendations.push({
+      name: "Steak with Sweet Potato",
+      calories: 700,
+      protein: 45,
+      carbs: 60,
+      fat: 25,
+      category: "muscle_gain",
+      reason: "High-protein meal with complex carbs for energy and recovery",
+    });
+  } else {
+    recommendations.push({
+      name: "Balanced Buddha Bowl",
+      calories: 500,
+      protein: 25,
+      carbs: 45,
+      fat: 20,
+      category: "maintenance",
+      reason: "Well-balanced meal with all essential nutrients",
+    });
+    recommendations.push({
+      name: "Mediterranean Plate",
+      calories: 550,
+      protein: 30,
+      carbs: 50,
+      fat: 22,
+      category: "maintenance",
+      reason: "Heart-healthy meal with good balance of macros",
+    });
+  }
+
+  return recommendations;
+}

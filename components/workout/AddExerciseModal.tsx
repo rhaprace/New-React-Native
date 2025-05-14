@@ -30,7 +30,7 @@ const AddExerciseModal: React.FC<AddExerciseModalProps> = ({
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const upsertExercise = useMutation(api.addOrUpdateExercise.upsertExercise);
+  const addExercise = useMutation(api.addOrUpdateExercise.addExercise);
 
   const matchingExercises = useQuery(
     api.exercise.searchExercisesByName,
@@ -183,7 +183,7 @@ const AddExerciseModal: React.FC<AddExerciseModalProps> = ({
 
     setLoading(true);
     try {
-      await upsertExercise({
+      await addExercise({
         userId,
         name: exerciseName,
         type: exerciseType,

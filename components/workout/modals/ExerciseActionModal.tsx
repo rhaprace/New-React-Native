@@ -71,6 +71,7 @@ const ExerciseActionModal: React.FC<ExerciseActionModalProps> = ({
   }, [editMode, exerciseToEdit, visible]);
 
   // Mutations
+  const addExercise = useMutation(api.addOrUpdateExercise.addExercise);
   const upsertExercise = useMutation(api.addOrUpdateExercise.upsertExercise);
   const deleteExercise = useMutation(
     api.directDeleteExercise.deleteExerciseById
@@ -217,17 +218,31 @@ const ExerciseActionModal: React.FC<ExerciseActionModalProps> = ({
     }
 
     try {
-      await upsertExercise({
-        userId,
-        name: exerciseName,
-        type: exerciseType,
-        duration: parseInt(exerciseDuration),
-        caloriesBurned: parseInt(exerciseCalories),
-        day: currentDay,
-        date: currentDate,
-        isCompleted:
-          editMode && exerciseToEdit ? exerciseToEdit.isCompleted : false,
-      });
+      // If in edit mode, use upsertExercise to update existing exercise
+      // If adding a new exercise, use addExercise to only save to recentWorkouts
+      if (editMode && exerciseToEdit) {
+        await upsertExercise({
+          userId,
+          name: exerciseName,
+          type: exerciseType,
+          duration: parseInt(exerciseDuration),
+          caloriesBurned: parseInt(exerciseCalories),
+          day: currentDay,
+          date: currentDate,
+          isCompleted: exerciseToEdit.isCompleted,
+        });
+      } else {
+        await addExercise({
+          userId,
+          name: exerciseName,
+          type: exerciseType,
+          duration: parseInt(exerciseDuration),
+          caloriesBurned: parseInt(exerciseCalories),
+          day: currentDay,
+          date: currentDate,
+          isCompleted: false,
+        });
+      }
 
       console.log("Exercise saved successfully:", {
         name: exerciseName,
@@ -236,8 +251,11 @@ const ExerciseActionModal: React.FC<ExerciseActionModalProps> = ({
         calories: parseInt(exerciseCalories),
       });
 
-      resetForm();
-      onClose();
+      // Add a small delay to ensure the database has time to update
+      setTimeout(() => {
+        resetForm();
+        onClose();
+      }, 300);
     } catch (error) {
       console.error("Error saving exercise:", error);
       Alert.alert("Error", "Failed to save exercise. Please try again.");

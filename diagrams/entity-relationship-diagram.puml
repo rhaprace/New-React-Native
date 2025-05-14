@@ -1,0 +1,121 @@
+@startuml AtleTech Entity Relationship Diagram
+
+' Entity definitions
+entity "Users" as users {
+  *_id : ObjectId
+  username : string
+  fullname : string
+  email : string
+  image : string (optional)
+  clerkId : string
+  subscription : enum
+  subscriptionEndDate : string (optional)
+  trialStartDate : string (optional)
+  trialEndDate : string (optional)
+  trialUsed : boolean (optional)
+  paymentDetails : object (optional)
+  expoPushToken : string (optional)
+}
+
+entity "Profile" as profile {
+  *_id : ObjectId
+  *userId : ObjectId (FK)
+  weight : number (optional)
+  height : number (optional)
+  age : number (optional)
+  bmr : number (optional)
+  dailyCalories : number (optional)
+  updatedAt : string
+  activityLevel : enum (optional)
+  gender : enum (optional)
+}
+
+entity "Exercise" as exercise {
+  *_id : ObjectId
+  *userId : ObjectId (FK)
+  name : string
+  type : string
+  duration : number
+  caloriesBurned : number
+  day : string
+  date : string
+  isCompleted : boolean
+}
+
+entity "RecentWorkouts" as recentWorkouts {
+  *_id : ObjectId
+  *userId : ObjectId (FK)
+  name : string
+  type : string
+  duration : number
+  caloriesBurned : number
+  day : string
+  date : string
+  lastUsed : string
+  isCompleted : boolean (optional)
+}
+
+entity "Meal" as meal {
+  *_id : ObjectId
+  *userId : ObjectId (FK)
+  name : string
+  calories : number
+  protein : number
+  carbs : number
+  fat : number
+  date : string
+  day : string
+  mealType : string
+}
+
+entity "AddedMeals" as addedMeals {
+  *_id : ObjectId
+  *userId : ObjectId (FK)
+  mealName : string
+  mealType : string
+  day : string
+  date : string
+}
+
+entity "FoodMacros" as foodMacros {
+  *_id : ObjectId
+  name : string
+  calories : number
+  protein : number
+  carbs : number
+  fat : number
+  category : string (optional)
+}
+
+entity "CalorieGoalTracking" as calorieGoalTracking {
+  *_id : ObjectId
+  *userId : ObjectId (FK)
+  date : string
+  goalReached : boolean
+  goalExceeded : boolean
+  totalCalories : number
+  dailyCalorieGoal : number
+  lastUpdated : string
+}
+
+entity "ChatMessages" as chatMessages {
+  *_id : ObjectId
+  *userId : ObjectId (FK)
+  content : string
+  isUserMessage : boolean
+  timestamp : string
+}
+
+' Relationships
+users ||--o{ profile : has
+users ||--o{ exercise : tracks
+users ||--o{ recentWorkouts : completes
+users ||--o{ meal : consumes
+users ||--o{ addedMeals : plans
+users ||--o{ calorieGoalTracking : monitors
+users ||--o{ chatMessages : sends
+
+meal }o--o{ addedMeals : references
+foodMacros }o--o{ meal : provides_macros_for
+
+@enduml

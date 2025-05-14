@@ -44,11 +44,11 @@ export default function PaymentCallback() {
           setTimeout(() => router.replace("/(tabs)/profile"), 1000);
         } else {
           console.log("Payment was not successful");
-          setTimeout(() => router.replace("/subscription/subscription"), 2000);
+          setTimeout(() => router.replace("/subscription/plans"), 2000);
         }
       } catch (error) {
         console.error("Payment processing error:", error);
-        setTimeout(() => router.replace("/subscription/subscription"), 2000);
+        setTimeout(() => router.replace("/subscription/plans"), 2000);
       }
     };
 

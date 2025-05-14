@@ -1,8 +1,24 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Button, Alert, StyleSheet, Linking } from "react-native";
-import { useRouter } from "expo-router";
+import {
+  View,
+  Text,
+  Alert,
+  Linking,
+  TouchableOpacity,
+  Image,
+  ScrollView,
+  SafeAreaView,
+  ActivityIndicator,
+} from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { COLORS } from "@/constants/theme";
+import Button from "@/components/ui/Button";
+import { Ionicons } from "@expo/vector-icons";
+import ThankYouModal from "@/components/subscription/ThankYouModal";
+import styles from "@/styles/checkout.styles";
+import { useToast } from "../../hooks/useToast";
 
 const PAYMONGO_SECRET_KEY = process.env.EXPO_PUBLIC_PAYMONGO_SECRET_KEY || "";
 const PAYMONGO_API_URL = "https://api.paymongo.com/v1";
@@ -11,40 +27,7 @@ const encodeBasicAuth = (key: string): string => {
   return btoa(key + ":");
 };
 
-const createPaymentIntent = async () => {
-  const intentRes = await fetch(`${PAYMONGO_API_URL}/payment_intents`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Basic ${encodeBasicAuth(PAYMONGO_SECRET_KEY)}`,
-    },
-    body: JSON.stringify({
-      data: {
-        attributes: {
-          amount: 20000,
-          payment_method_allowed: ["gcash", "paymaya"],
-          payment_method_options: {
-            card: { request_three_d_secure: "any" },
-          },
-          currency: "PHP",
-        },
-      },
-    }),
-  });
-
-  if (!intentRes.ok) {
-    const intentError = await intentRes.json();
-    console.error("Create Intent Error:", intentError);
-    throw new Error(
-      intentError.errors?.[0]?.detail || "Failed to create payment intent"
-    );
-  }
-
-  const intentData = await intentRes.json();
-  return intentData.data;
-};
-
-const createPaymentSource = async () => {
+const createPaymentSource = async (paymentType: string, amount: number) => {
   const sourceRes = await fetch(`${PAYMONGO_API_URL}/sources`, {
     method: "POST",
     headers: {
@@ -54,9 +37,9 @@ const createPaymentSource = async () => {
     body: JSON.stringify({
       data: {
         attributes: {
-          amount: 20000,
+          amount: amount,
           currency: "PHP",
-          type: "gcash",
+          type: paymentType,
           redirect: {
             success: "https://example.com/success",
             failed: "https://example.com/failed",
@@ -78,46 +61,54 @@ const createPaymentSource = async () => {
   return sourceData.data;
 };
 
-const attachPaymentMethod = async (
-  intentId: string,
-  paymentMethodId: string
-) => {
-  const returnUrl = "https://example.com/payment-callback";
-
-  const methodRes = await fetch(
-    `${PAYMONGO_API_URL}/payment_intents/${intentId}/attach`,
-    {
-      method: "POST",
+const checkPaymentStatus = async (sourceId: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`${PAYMONGO_API_URL}/sources/${sourceId}`, {
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Basic ${encodeBasicAuth(PAYMONGO_SECRET_KEY)}`,
       },
-      body: JSON.stringify({
-        data: {
-          attributes: {
-            payment_method: paymentMethodId,
-            return_url: returnUrl,
-          },
-        },
-      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to check payment status");
     }
-  );
 
-  if (!methodRes.ok) {
-    const methodError = await methodRes.json();
-    console.error("Attach Method Error:", methodError);
-    throw new Error(
-      methodError.errors?.[0]?.detail || "Failed to attach payment method"
-    );
+    const data = await response.json();
+    console.log("Payment status response:", data);
+    console.log("Payment status:", data.data.attributes.status);
+
+    // Check for both chargeable and paid status
+    return ["chargeable", "paid"].includes(data.data.attributes.status);
+  } catch (error) {
+    console.error("Error checking payment status:", error);
+    return false;
   }
-
-  const methodData = await methodRes.json();
-  return methodData.data;
 };
 
 export default function Checkout() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const [loading, setLoading] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] =
+    useState<string>("gcash");
+  const [showThankYouModal, setShowThankYouModal] = useState(false);
+  const [paymentStep, setPaymentStep] = useState<
+    "init" | "processing" | "confirming" | "success" | "failed"
+  >("init");
+  const toast = useToast();
+
+  // Get plan details from params
+  const planName = (params.planName as string) || "Monthly";
+  const planPrice = parseInt((params.planPrice as string) || "7500");
+  const planDescription =
+    (params.planDescription as string) || "Standard monthly subscription";
+  const isDiscounted = (params.isDiscounted as string) === "true";
+  const originalPrice = parseInt((params.originalPrice as string) || "20000");
+  const isPlanChange = (params.isPlanChange as string) === "true";
+  const currentPlanRemaining = parseInt(
+    (params.currentPlanRemaining as string) || "0"
+  );
+
   const updateSubscription = useMutation(api.subscription.updateSubscription);
   const updatePromptSeen = useMutation(
     api.subscription.updateSubscriptionPromptSeen
@@ -127,8 +118,16 @@ export default function Checkout() {
   const handlePayment = async () => {
     try {
       setLoading(true);
+      setPaymentStep("processing");
+      toast.show({
+        type: "info",
+        message: "Initiating payment process...",
+      });
 
-      const source = await createPaymentSource();
+      const source = await createPaymentSource(
+        selectedPaymentMethod,
+        planPrice
+      );
       console.log("Payment Source:", source);
 
       await savePaymentSource({ sourceId: source.id });
@@ -141,66 +140,153 @@ export default function Checkout() {
       Linking.addEventListener("url", handleDeepLink);
 
       if (await Linking.canOpenURL(checkoutUrl)) {
+        setPaymentStep("confirming");
+        toast.show({
+          type: "info",
+          message: "Redirecting to payment gateway...",
+        });
         await Linking.openURL(checkoutUrl);
-
         Alert.alert(
           "Payment Instructions",
-          "Complete your payment in GCash. After payment, return to this app to check your subscription status.",
+          `Complete your payment in ${selectedPaymentMethod === "gcash" ? "GCash" : "PayMaya"}. After payment, return to this app to check your subscription status.`,
           [
             {
               text: "Check Payment Status",
-              onPress: () => router.replace("/subscription/subscription"),
+              onPress: () => {
+                setPaymentStep("confirming");
+                checkPaymentAndUpdate(source.id);
+              },
+            },
+            {
+              text: "Need Help?",
+              onPress: () => {
+                Alert.alert(
+                  "Support",
+                  "If you're having trouble with your payment, please contact our support team at support@example.com or call +63 XXX XXX XXXX",
+                  [
+                    { text: "OK" },
+                    {
+                      text: "Email Support",
+                      onPress: () =>
+                        Linking.openURL("mailto:support@example.com"),
+                    },
+                  ]
+                );
+              },
             },
           ]
         );
       } else {
-        Alert.alert("Error", "Cannot open GCash payment page");
+        setPaymentStep("failed");
+        toast.show({
+          type: "error",
+          message: "Could not open payment gateway",
+        });
+        Alert.alert(
+          "Error",
+          `Cannot open ${selectedPaymentMethod === "gcash" ? "GCash" : "PayMaya"} payment page`
+        );
       }
     } catch (error) {
       console.error("Payment Error:", error);
+      setPaymentStep("failed");
+      toast.show({
+        type: "error",
+        message: error instanceof Error ? error.message : "Payment failed",
+      });
       Alert.alert(
         "Error",
         error instanceof Error ? error.message : "Payment failed"
       );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const checkPaymentAndUpdate = async (sourceId: string) => {
+    try {
+      setLoading(true);
+      let isPaymentSuccessful = false;
+      let attempts = 0;
+      const maxAttempts = 5;
+
+      while (attempts < maxAttempts && !isPaymentSuccessful) {
+        isPaymentSuccessful = await checkPaymentStatus(sourceId);
+        if (isPaymentSuccessful) {
+          setPaymentStep("success");
+          await processSuccessfulPayment();
+          break;
+        }
+        attempts++;
+        if (attempts < maxAttempts) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+      }
+
+      if (!isPaymentSuccessful) {
+        setPaymentStep("failed");
+        Alert.alert(
+          "Payment Pending",
+          "Your payment is still being processed. Please wait a moment and try checking again.",
+          [
+            {
+              text: "Check Again",
+              onPress: () => checkPaymentAndUpdate(sourceId),
+            },
+            {
+              text: "Go to Profile",
+              onPress: () => router.replace("/(tabs)"),
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      console.error("Error checking payment:", error);
+      setPaymentStep("failed");
+      Alert.alert(
+        "Error",
+        "Failed to check payment status. Please try again later."
+      );
+    } finally {
       setLoading(false);
     }
   };
 
   const handleDeepLink = async ({ url }: { url: string }) => {
     console.log("Received deep link:", url);
-
     Linking.removeAllListeners("url");
 
     try {
       const urlObj = new URL(url);
       const params = new URLSearchParams(urlObj.search);
+      const sourceId = params.get("source_id");
 
-      if (url.includes("success") || params.get("success") === "true") {
-        await processSuccessfulPayment();
-      } else {
-        Alert.alert(
-          "Payment Failed",
-          "Your payment was not completed. Please try again."
-        );
-        setLoading(false);
+      if (!sourceId) {
+        throw new Error("No source ID found in URL");
       }
+
+      await checkPaymentAndUpdate(sourceId);
     } catch (error) {
       console.error("Error handling deep link:", error);
       Alert.alert("Error", "There was a problem processing your payment.");
+      setPaymentStep("failed");
       setLoading(false);
     }
   };
+
   const processSuccessfulPayment = async () => {
     try {
+      setPaymentStep("success");
       const nextBillingDate = new Date();
       nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
 
       await updateSubscription({
         subscription: "active",
         paymentDetails: {
-          paymentIntentId: "gcash_" + Date.now(),
-          paymentMethod: "gcash",
-          amount: 20000,
+          paymentIntentId: `${selectedPaymentMethod}_${Date.now()}`,
+          paymentMethod:
+            selectedPaymentMethod === "gcash" ? "gcash" : "paymaya",
+          amount: planPrice,
           currency: "PHP",
           status: "completed",
           lastPaymentDate: new Date().toISOString(),
@@ -210,11 +296,36 @@ export default function Checkout() {
       });
       await updatePromptSeen();
 
-      Alert.alert("Payment Successful", "Thank you for your subscription!", [
-        { text: "OK", onPress: () => router.replace("/(tabs)") },
-      ]);
+      // Show success message and thank you modal
+      Alert.alert(
+        "Payment Successful",
+        "Your subscription has been activated successfully! You will receive a confirmation email shortly.",
+        [
+          {
+            text: "View Receipt",
+            onPress: () => {
+              // TODO: Implement receipt view
+              Alert.alert(
+                "Receipt",
+                `Payment Details:\nAmount: ${formatPrice(planPrice)}\nDate: ${new Date().toLocaleDateString()}\nTransaction ID: ${selectedPaymentMethod}_${Date.now()}\n\nA copy has been sent to your email.`
+              );
+            },
+          },
+          {
+            text: "Continue",
+            onPress: () => {
+              setShowThankYouModal(true);
+            },
+          },
+        ]
+      );
     } catch (error) {
       console.error("Error processing successful payment:", error);
+      setPaymentStep("failed");
+      toast.show({
+        type: "error",
+        message: "Failed to update subscription",
+      });
       Alert.alert(
         "Error",
         "Your payment was received, but there was an issue updating your subscription. Please contact support."
@@ -224,6 +335,10 @@ export default function Checkout() {
     }
   };
 
+  const formatPrice = (price: number) => {
+    return `₱${(price / 100).toFixed(2)}`;
+  };
+
   useEffect(() => {
     return () => {
       Linking.removeAllListeners("url");
@@ -231,42 +346,205 @@ export default function Checkout() {
   }, []);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Choose Payment Method</Text>
-      <Text style={styles.amount}>Amount: ₱200.00</Text>
-      <View style={styles.buttonContainer}>
-        <Button
-          title={loading ? "Processing..." : "Pay with GCash"}
-          onPress={handlePayment}
-          disabled={loading}
-        />
-      </View>
-    </View>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.container}>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.replace("/subscription/plans")}
+            >
+              <Ionicons name="arrow-back" size={24} color={COLORS.primary} />
+            </TouchableOpacity>
+            <Text style={styles.title}>Checkout</Text>
+            <View style={styles.placeholder} />
+          </View>
+
+          {/* Payment Status Indicator */}
+          {paymentStep !== "init" && (
+            <View style={styles.statusContainer}>
+              <ActivityIndicator
+                size="small"
+                color={COLORS.primary}
+                style={styles.statusIndicator}
+              />
+              <Text style={styles.statusText}>
+                {paymentStep === "processing" && "Processing payment..."}
+                {paymentStep === "confirming" && "Confirming payment..."}
+                {paymentStep === "success" && "Payment successful!"}
+                {paymentStep === "failed" && "Payment failed"}
+              </Text>
+            </View>
+          )}
+
+          {/* Order Summary */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Order Summary</Text>
+            <View style={styles.planContainer}>
+              <View style={styles.planInfo}>
+                <Text style={styles.planName}>{planName}</Text>
+                <Text style={styles.planDescription}>{planDescription}</Text>
+              </View>
+              <View style={styles.priceContainer}>
+                {isDiscounted && (
+                  <Text style={styles.originalPrice}>
+                    {formatPrice(originalPrice)}
+                  </Text>
+                )}
+                <Text style={styles.price}>{formatPrice(planPrice)}</Text>
+              </View>
+            </View>
+
+            {isPlanChange && (
+              <>
+                <View style={styles.divider} />
+                <View style={styles.planChangeDetails}>
+                  <Text style={styles.planChangeTitle}>
+                    Plan Change Details
+                  </Text>
+                  <Text style={styles.planChangeText}>
+                    Current Plan Remaining: {formatPrice(currentPlanRemaining)}
+                  </Text>
+                  <Text style={styles.planChangeText}>
+                    New Plan Cost: {formatPrice(planPrice)}
+                  </Text>
+                </View>
+              </>
+            )}
+
+            <View style={styles.divider} />
+            <View style={styles.totalContainer}>
+              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalAmount}>{formatPrice(planPrice)}</Text>
+            </View>
+          </View>
+
+          {/* Payment Methods */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Payment Method</Text>
+            <TouchableOpacity
+              style={[
+                styles.paymentOption,
+                selectedPaymentMethod === "gcash" &&
+                  styles.selectedPaymentOption,
+              ]}
+              onPress={() => setSelectedPaymentMethod("gcash")}
+            >
+              <View style={styles.paymentOptionContent}>
+                <View style={styles.radioButtonContainer}>
+                  {selectedPaymentMethod === "gcash" && (
+                    <View style={styles.radioButtonSelected} />
+                  )}
+                </View>
+                <View style={styles.paymentLogoContainer}>
+                  <Image
+                    source={{
+                      uri: "https://www.gcash.com/wp-content/uploads/2019/04/gcash-logo.png",
+                    }}
+                    style={styles.paymentLogo}
+                    resizeMode="contain"
+                  />
+                </View>
+                <Text style={styles.paymentName}>GCash</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.paymentOption,
+                selectedPaymentMethod === "paymaya" &&
+                  styles.selectedPaymentOption,
+              ]}
+              onPress={() => setSelectedPaymentMethod("paymaya")}
+            >
+              <View style={styles.paymentOptionContent}>
+                <View style={styles.radioButtonContainer}>
+                  {selectedPaymentMethod === "paymaya" && (
+                    <View style={styles.radioButtonSelected} />
+                  )}
+                </View>
+                <View style={styles.paymentLogoContainer}>
+                  <Image
+                    source={{
+                      uri: "https://www.maya.ph/hubfs/Maya%20Brand%20Assets/Maya%20Logo/RGB/Maya_Logo_RGB_Green.png",
+                    }}
+                    style={styles.paymentLogo}
+                    resizeMode="contain"
+                  />
+                </View>
+                <Text style={styles.paymentName}>Maya (PayMaya)</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Payment Button */}
+          <View style={styles.buttonContainer}>
+            <Button
+              variant="primary"
+              size="lg"
+              loading={loading}
+              disabled={loading}
+              fullWidth
+              onPress={handlePayment}
+            >
+              {loading
+                ? "Processing..."
+                : `Pay with ${selectedPaymentMethod === "gcash" ? "GCash" : "Maya"}`}
+            </Button>
+          </View>
+
+          {/* Security and Trust Section */}
+          <View style={styles.securitySection}>
+            <View style={styles.securityItem}>
+              <Ionicons
+                name="shield-checkmark"
+                size={20}
+                color={COLORS.primary}
+              />
+              <Text style={styles.securityText}>Secure Payment</Text>
+            </View>
+            <View style={styles.securityItem}>
+              <Ionicons name="lock-closed" size={20} color={COLORS.primary} />
+              <Text style={styles.securityText}>Data Protected</Text>
+            </View>
+            <View style={styles.securityItem}>
+              <Ionicons name="refresh" size={20} color={COLORS.primary} />
+              <Text style={styles.securityText}>30-Day Refund</Text>
+            </View>
+          </View>
+
+          {/* Terms and Privacy */}
+          <View style={styles.termsContainer}>
+            <Text style={styles.termsText}>
+              By proceeding, you agree to our{" "}
+              <Text
+                style={styles.termsLink}
+                onPress={() => Linking.openURL("https://example.com/terms")}
+              >
+                Terms of Service
+              </Text>{" "}
+              and{" "}
+              <Text
+                style={styles.termsLink}
+                onPress={() => Linking.openURL("https://example.com/privacy")}
+              >
+                Privacy Policy
+              </Text>
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Thank You Modal */}
+      <ThankYouModal
+        visible={showThankYouModal}
+        onClose={() => {
+          setShowThankYouModal(false);
+          router.replace("/(tabs)");
+        }}
+        isTrialActivation={false}
+      />
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#fff",
-  },
-  title: {
-    fontSize: 24,
-    marginBottom: 20,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  amount: {
-    fontSize: 18,
-    marginBottom: 30,
-    color: "#666",
-  },
-  buttonContainer: {
-    width: "100%",
-    maxWidth: 300,
-    marginTop: 20,
-  },
-});

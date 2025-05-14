@@ -1,0 +1,114 @@
+@startuml AtleTech Object Diagram
+
+' Define objects
+object "user1:User" as user1 {
+  _id = "user123"
+  username = "johndoe"
+  fullname = "John Doe"
+  email = "john@example.com"
+  clerkId = "clerk_123456"
+  subscription = "active"
+  subscriptionEndDate = "2023-12-31"
+}
+
+object "profile1:Profile" as profile1 {
+  _id = "profile123"
+  userId = "user123"
+  weight = 75.5
+  height = 180
+  age = 30
+  bmr = 1800
+  dailyCalories = 2200
+  activityLevel = "Moderately Active"
+  gender = "Male"
+}
+
+object "exercise1:Exercise" as exercise1 {
+  _id = "exercise123"
+  userId = "user123"
+  name = "Bench Press"
+  type = "strength"
+  duration = 45
+  caloriesBurned = 300
+  day = "Monday"
+  date = "2023-06-05"
+  isCompleted = false
+}
+
+object "recentWorkout1:RecentWorkout" as recentWorkout1 {
+  _id = "recentWorkout123"
+  userId = "user123"
+  name = "Squats"
+  type = "strength"
+  duration = 30
+  caloriesBurned = 250
+  day = "Friday"
+  date = "2023-06-02"
+  lastUsed = "2023-06-02T15:30:00Z"
+  isCompleted = true
+}
+
+object "meal1:Meal" as meal1 {
+  _id = "meal123"
+  userId = "user123"
+  name = "Chicken Salad"
+  calories = 450
+  protein = 35
+  carbs = 20
+  fat = 15
+  date = "2023-06-05"
+  day = "Monday"
+  mealType = "Lunch"
+}
+
+object "addedMeal1:AddedMeal" as addedMeal1 {
+  _id = "addedMeal123"
+  userId = "user123"
+  mealName = "Chicken Salad"
+  mealType = "Lunch"
+  day = "Monday"
+  date = "2023-06-05"
+}
+
+object "foodMacro1:FoodMacro" as foodMacro1 {
+  _id = "foodMacro123"
+  name = "Chicken Breast"
+  calories = 165
+  protein = 31
+  carbs = 0
+  fat = 3.6
+  category = "Protein"
+}
+
+object "calorieGoal1:CalorieGoalTracking" as calorieGoal1 {
+  _id = "calorieGoal123"
+  userId = "user123"
+  date = "2023-06-05"
+  goalReached = false
+  goalExceeded = false
+  totalCalories = 1800
+  dailyCalorieGoal = 2200
+  lastUpdated = "2023-06-05T20:00:00Z"
+}
+
+object "chatMessage1:ChatMessage" as chatMessage1 {
+  _id = "chatMessage123"
+  userId = "user123"
+  content = "How can I improve my bench press form?"
+  isUserMessage = true
+  timestamp = "2023-06-05T14:30:00Z"
+}
+
+' Define relationships
+user1 -- profile1
+user1 -- exercise1
+user1 -- recentWorkout1
+user1 -- meal1
+user1 -- addedMeal1
+user1 -- calorieGoal1
+user1 -- chatMessage1
+
+meal1 -- addedMeal1
+foodMacro1 -- meal1 : provides_nutrition_data
+
+@enduml

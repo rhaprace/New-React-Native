@@ -1,0 +1,101 @@
+@startuml AtleTech Meal Planning Activity Diagram
+
+|User|
+|App|
+|Database|
+
+start
+
+|User|
+:Open Meal Planner Screen;
+
+|App|
+:Load Meal Plan Data;
+:Display Weekly Meal Plan;
+
+|User|
+:Select Day to Plan;
+
+|App|
+:Expand Selected Day;
+:Show Meal Types (Breakfast, Lunch, Dinner, Snacks);
+
+|User|
+:Select Meal Type;
+
+|User|
+if (Add Custom Meal?) then (yes)
+  :Tap "Add Custom Meal";
+
+  |App|
+  :Show Custom Meal Form;
+
+  |User|
+  :Enter Meal Name;
+  :Enter Nutritional Information;
+  :Submit Form;
+
+  |App|
+  :Validate Input;
+
+  |Database|
+  :Save Custom Meal;
+  :Update Meal Plan;
+
+else (no)
+  |User|
+  :Tap "Get Recommendations";
+
+  |App|
+  :Show Meal Recommendations;
+
+  |User|
+  :Browse Recommendations;
+  :Select Recommended Meal;
+
+  |App|
+  :Show Meal Details;
+
+  |User|
+  :Confirm Selection;
+
+  |Database|
+  :Save Selected Meal;
+  :Update Meal Plan;
+endif
+
+|App|
+:Update Calorie and Macro Totals;
+:Refresh Meal Plan Display;
+
+|User|
+if (Add to Today's Food?) then (yes)
+  :Tap "Add to Today's Food";
+
+  |App|
+  :Confirm Addition;
+
+  |Database|
+  :Add Meal to Today's Food;
+  :Update Calorie Goal Tracking;
+
+  |App|
+  :Show Confirmation;
+  :Update Today's Food Display;
+else (no)
+  |User|
+  :Continue Planning;
+endif
+
+|User|
+if (Continue Planning?) then (yes)
+  :Select Another Day or Meal Type;
+  |App|
+  :Show Meal Types Again;
+else (no)
+  :Exit Meal Planner;
+endif
+
+stop
+
+@enduml

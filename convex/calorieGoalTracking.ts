@@ -11,14 +11,21 @@ export const trackCalorieGoal = mutation({
     dailyCalorieGoal: v.number(),
   },
   handler: async (ctx, args) => {
-    const { userId, date, goalReached, goalExceeded, totalCalories, dailyCalorieGoal } = args;
+    const {
+      userId,
+      date,
+      goalReached,
+      goalExceeded,
+      totalCalories,
+      dailyCalorieGoal,
+    } = args;
     const existingTracking = await ctx.db
       .query("calorieGoalTracking")
       .withIndex("by_user_date", (q) => q.eq("userId", userId).eq("date", date))
       .first();
-    
+
     const lastUpdated = new Date().toISOString();
-    
+
     if (existingTracking) {
       await ctx.db.patch(existingTracking._id, {
         goalReached,
@@ -27,7 +34,7 @@ export const trackCalorieGoal = mutation({
         dailyCalorieGoal,
         lastUpdated,
       });
-      
+
       return {
         success: true,
         trackingId: existingTracking._id,
@@ -43,7 +50,7 @@ export const trackCalorieGoal = mutation({
         dailyCalorieGoal,
         lastUpdated,
       });
-      
+
       return {
         success: true,
         trackingId,
@@ -59,7 +66,7 @@ export const getCalorieGoalTrackingByDate = query({
   },
   handler: async (ctx, args) => {
     const { userId, date } = args;
-    
+
     return await ctx.db
       .query("calorieGoalTracking")
       .withIndex("by_user_date", (q) => q.eq("userId", userId).eq("date", date))
@@ -77,7 +84,7 @@ export const resetCalorieTracking = mutation({
       .query("calorieGoalTracking")
       .withIndex("by_user_date", (q) => q.eq("userId", userId).eq("date", date))
       .first();
-    
+
     if (existingTracking) {
       await ctx.db.patch(existingTracking._id, {
         goalReached: false,
@@ -85,13 +92,13 @@ export const resetCalorieTracking = mutation({
         totalCalories: 0,
         lastUpdated: new Date().toISOString(),
       });
-      
+
       return {
         success: true,
         status: "reset",
       };
     }
-    
+
     return {
       success: false,
       status: "no_tracking_found",

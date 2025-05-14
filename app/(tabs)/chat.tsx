@@ -73,7 +73,7 @@ export default function Chat() {
           {
             _id: "welcome",
             userId,
-            content: `Hello ${user?.firstName || "there"}! I'm your AtleTech assistant. I know all about your fitness data and can help you with:
+            content: `Hello ${convexUser?.fullname || user?.firstName || "there"}! I'm your AtleTech assistant. I know all about your fitness data and can help you with:
 
 • Your profile information (age, weight, height, gender, activity level)
 • Your calorie goals and tracking
@@ -107,7 +107,7 @@ Try asking me for a fitness tip, a meal recommendation, or insights about your p
 
         <View style={styles.header}>
           <Text variant="h4" weight="bold">
-            Chat Assistant
+            AtleTechBot
           </Text>
         </View>
 

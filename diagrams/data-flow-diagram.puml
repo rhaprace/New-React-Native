@@ -1,0 +1,72 @@
+@startuml AtleTech Data Flow Diagram
+
+' Define external entities
+actor "User" as user
+actor "Clerk Auth" as clerk
+actor "PayMongo" as paymongo
+
+' Define processes
+rectangle "User Authentication" as auth
+rectangle "Profile Management" as profile
+rectangle "Meal Planning" as meal
+rectangle "Workout Tracking" as workout
+rectangle "Progress Monitoring" as progress
+rectangle "Subscription Management" as subscription
+
+' Define data stores
+database "Users" as usersDB
+database "Profiles" as profilesDB
+database "Meals" as mealsDB
+database "Exercises" as exercisesDB
+database "Recent Workouts" as workoutsDB
+database "Calorie Tracking" as caloriesDB
+database "Food Macros" as macrosDB
+database "Chat Messages" as chatDB
+
+' Define data flows
+
+' Authentication flows
+user --> auth : Login credentials
+auth --> clerk : Verify credentials
+clerk --> auth : Authentication token
+auth --> usersDB : Store user data
+auth --> user : Authentication result
+
+' Profile flows
+user --> profile : Profile information
+profile --> profilesDB : Store profile data
+profilesDB --> profile : Retrieve profile data
+profile --> user : Display profile
+
+' Meal planning flows
+user --> meal : Meal selection
+meal --> mealsDB : Store meal plan
+macrosDB --> meal : Nutritional information
+mealsDB --> meal : Retrieve meal data
+meal --> user : Display meal plan
+meal --> caloriesDB : Update calorie tracking
+
+' Workout flows
+user --> workout : Exercise selection
+workout --> exercisesDB : Store exercise data
+exercisesDB --> workout : Retrieve exercise data
+workout --> workoutsDB : Store completed workouts
+workoutsDB --> workout : Retrieve workout history
+workout --> user : Display workout plan
+
+' Progress flows
+profilesDB --> progress : Weight data
+caloriesDB --> progress : Calorie data
+workoutsDB --> progress : Exercise data
+progress --> user : Display progress charts
+user --> progress : Step count data
+progress --> profilesDB : Update progress metrics
+
+' Subscription flows
+user --> subscription : Subscription request
+subscription --> paymongo : Payment processing
+paymongo --> subscription : Payment confirmation
+subscription --> usersDB : Update subscription status
+subscription --> user : Subscription confirmation
+
+@enduml

@@ -6,7 +6,7 @@ import {
   StyleSheet,
   Button,
 } from "react-native";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useRouter } from "expo-router";
 import { COLORS } from "@/constants/theme";
@@ -51,31 +51,46 @@ export default function PaymentChecker() {
   const router = useRouter();
   const [checking, setChecking] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const { isAuthenticated } = useConvexAuth();
 
+  // Only fetch payment source if user is authenticated
   const paymentSource = useQuery(api.subscription.checkPaymentSource);
+
   const updateSubscription = useMutation(api.subscription.updateSubscription);
   const updatePromptSeen = useMutation(
     api.subscription.updateSubscriptionPromptSeen
   );
 
   useEffect(() => {
-    if (paymentSource?.sourceId && !checking && !status) {
+    // Only proceed if the user is authenticated
+    if (!isAuthenticated) {
+      return;
+    }
+
+    // Check if paymentSource exists and has a sourceId
+    if (paymentSource && paymentSource.sourceId && !checking && !status) {
       checkPendingPayment();
     }
+
     const intervalId = setInterval(() => {
+      // Check if user is still authenticated and paymentSource exists before making API calls
       if (
-        paymentSource?.sourceId &&
+        isAuthenticated &&
+        paymentSource &&
+        paymentSource.sourceId &&
         !checking &&
         (status === "pending" || !status)
       ) {
         checkPendingPayment();
       }
     }, 5000);
+
     return () => clearInterval(intervalId);
-  }, [paymentSource, status]);
+  }, [paymentSource, status, isAuthenticated]);
 
   const checkPendingPayment = async () => {
-    if (!paymentSource?.sourceId) return;
+    // Check if user is authenticated and payment source exists
+    if (!isAuthenticated || !paymentSource || !paymentSource.sourceId) return;
 
     setChecking(true);
 
@@ -107,13 +122,21 @@ export default function PaymentChecker() {
   };
 
   const processSuccessfulPayment = async () => {
+    // Check if user is authenticated and payment source exists before processing payment
+    if (!isAuthenticated || !paymentSource) {
+      console.log(
+        "User is not authenticated or payment source is missing, cannot process payment"
+      );
+      return;
+    }
+
     try {
       const nextBillingDate = new Date();
       nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
       await updateSubscription({
         subscription: "active",
         paymentDetails: {
-          paymentIntentId: paymentSource?.sourceId || "gcash_" + Date.now(),
+          paymentIntentId: paymentSource.sourceId || "gcash_" + Date.now(),
           paymentMethod: "gcash",
           amount: 20000,
           currency: "PHP",
@@ -126,13 +149,22 @@ export default function PaymentChecker() {
 
       await updatePromptSeen();
 
-      router.replace("/(tabs)");
+      // Redirect to profile page for new users
+      router.replace("/(tabs)/profile");
     } catch (error) {
       console.error("Error processing payment:", error);
+      // Set status to error so user can try again
+      setStatus("error");
     }
   };
 
-  if (!paymentSource?.sourceId) {
+  // Don't show anything if user is not authenticated
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  // Don't show anything if there's no payment source to check
+  if (!paymentSource || !paymentSource.sourceId) {
     return null;
   }
 
@@ -166,7 +198,7 @@ export default function PaymentChecker() {
               </Text>
               <Button
                 title="Continue"
-                onPress={() => router.replace("/(tabs)")}
+                onPress={() => router.replace("/(tabs)/profile")}
               />
             </>
           ) : null}

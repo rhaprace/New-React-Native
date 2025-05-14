@@ -37,7 +37,7 @@ const AddExerciseModal: React.FC<AddExerciseModalProps> = ({
   const [exerciseCalories, setExerciseCalories] = useState("");
   const [isSearching, setIsSearching] = useState(false);
 
-  const upsertExercise = useMutation(api.addOrUpdateExercise.upsertExercise);
+  const addExercise = useMutation(api.addOrUpdateExercise.addExercise);
 
   const matchingExercises = useQuery(
     api.exercise.searchExercisesByName,
@@ -95,14 +95,19 @@ const AddExerciseModal: React.FC<AddExerciseModalProps> = ({
 
   const handleExerciseNameChange = (text: string) => {
     setExerciseName(text);
-    setIsSearching(text.trim().length >= 2);
+
+    // Only trigger search if text is at least 2 characters
+    if (text.trim().length >= 2) {
+      setIsSearching(true);
+    } else {
+      setIsSearching(false);
+    }
+
+    // Auto-detect exercise type if text is at least 3 characters
     if (text.trim().length >= 3) {
       const autoDetectedType = determineExerciseType(text);
       setExerciseType(autoDetectedType);
     }
-
-    // The auto-population of exercise details will happen when a user selects
-    // an exercise from the search results, not automatically during typing
   };
 
   const handleAddCustomExercise = async () => {
@@ -122,7 +127,7 @@ const AddExerciseModal: React.FC<AddExerciseModalProps> = ({
     }
 
     try {
-      await upsertExercise({
+      await addExercise({
         userId,
         name: exerciseName,
         type: exerciseType,
@@ -133,8 +138,11 @@ const AddExerciseModal: React.FC<AddExerciseModalProps> = ({
         isCompleted: false,
       });
 
-      resetForm();
-      onClose();
+      // Add a small delay to ensure the database has time to update
+      setTimeout(() => {
+        resetForm();
+        onClose();
+      }, 300);
     } catch (error) {
       console.error("Error adding exercise:", error);
       alert("Failed to add exercise. Please try again.");
@@ -158,162 +166,168 @@ const AddExerciseModal: React.FC<AddExerciseModalProps> = ({
     >
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Add Custom Exercise</Text>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Text style={styles.modalTitle}>Add Custom Exercise</Text>
 
-          <TextInput
-            style={[styles.input, { color: COLORS.textPrimary }]}
-            placeholder="Exercise Name"
-            placeholderTextColor={COLORS.textTertiary}
-            value={exerciseName}
-            onChangeText={handleExerciseNameChange}
-          />
+            <TextInput
+              style={[styles.input, { color: COLORS.textPrimary }]}
+              placeholder="Exercise Name"
+              placeholderTextColor={COLORS.textTertiary}
+              value={exerciseName}
+              onChangeText={handleExerciseNameChange}
+            />
 
-          {exerciseName.trim().length >= 3 && (
-            <Text style={styles.matchingText}>
-              Exercise type auto-detected:{" "}
-              {exerciseType.charAt(0).toUpperCase() + exerciseType.slice(1)}
-            </Text>
-          )}
+            {exerciseName.trim().length >= 3 && (
+              <Text style={styles.matchingText}>
+                Exercise type auto-detected:{" "}
+                {exerciseType.charAt(0).toUpperCase() + exerciseType.slice(1)}
+              </Text>
+            )}
 
-          {isSearching && exerciseName.trim().length >= 2 && (
-            <View style={styles.searchResultsContainer}>
-              {matchingExercises === undefined ? (
-                <Text style={styles.matchingText}>Searching...</Text>
-              ) : matchingExercises.length === 0 ? (
-                <Text style={styles.matchingText}>
-                  No matching exercises found
-                </Text>
-              ) : (
-                <>
+            {isSearching && exerciseName.trim().length >= 2 && (
+              <View style={styles.searchResultsContainer}>
+                {matchingExercises === undefined ? (
+                  <Text style={styles.matchingText}>Searching...</Text>
+                ) : matchingExercises.length === 0 ? (
                   <Text style={styles.matchingText}>
-                    {matchingExercises.length} matching exercise(s) found
+                    No matching exercises found
                   </Text>
-                  <FlatList
-                    style={[styles.searchResults, { maxHeight: 200 }]}
-                    data={matchingExercises.slice(0, 10)}
-                    keyExtractor={(_, index) => index.toString()}
-                    keyboardShouldPersistTaps="handled"
-                    nestedScrollEnabled={true}
-                    renderItem={({ item: exercise }) => (
-                      <TouchableOpacity
-                        style={styles.searchResultItem}
-                        onPress={() => {
-                          setExerciseName(exercise.name);
-                          setExerciseType(exercise.type);
-                          setExerciseDuration(exercise.duration.toString());
-                          setExerciseCalories(
-                            exercise.caloriesBurned.toString()
-                          );
-                        }}
-                      >
-                        <Text style={styles.searchResultItemName}>
-                          {exercise.name}
-                        </Text>
-                        <Text style={styles.searchResultItemDetails}>
-                          {exercise.type.charAt(0).toUpperCase() +
-                            exercise.type.slice(1)}{" "}
-                          | {exercise.duration} mins | {exercise.caloriesBurned}{" "}
-                          cal
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  />
-                </>
-              )}
-            </View>
-          )}
+                ) : (
+                  <>
+                    <Text style={styles.matchingText}>
+                      {matchingExercises.length} matching exercise(s) found
+                    </Text>
+                    <FlatList
+                      style={styles.searchResults}
+                      data={matchingExercises.slice(0, 5)} // Limit to 5 results for better performance
+                      keyExtractor={(_, index) => index.toString()}
+                      keyboardShouldPersistTaps="handled"
+                      nestedScrollEnabled={true}
+                      renderItem={({ item: exercise }) => (
+                        <TouchableOpacity
+                          style={styles.searchResultItem}
+                          onPress={() => {
+                            setExerciseName(exercise.name);
+                            setExerciseType(exercise.type);
+                            setExerciseDuration(exercise.duration.toString());
+                            setExerciseCalories(
+                              exercise.caloriesBurned.toString()
+                            );
+                            setIsSearching(false); // Hide search results after selection
+                          }}
+                        >
+                          <Text style={styles.searchResultItemName}>
+                            {exercise.name}
+                          </Text>
+                          <Text style={styles.searchResultItemDetails}>
+                            {exercise.type.charAt(0).toUpperCase() +
+                              exercise.type.slice(1)}{" "}
+                            | {exercise.duration} mins |{" "}
+                            {exercise.caloriesBurned} cal
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    />
+                  </>
+                )}
+              </View>
+            )}
 
-          <View style={styles.typeSelector}>
-            <Text style={styles.typeLabel}>Exercise Type:</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              nestedScrollEnabled={true}
-            >
-              {["strength", "cardio", "flexibility", "core"].map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.typeButton,
-                    exerciseType === type && styles.selectedTypeButton,
-                  ]}
-                  onPress={() => {
-                    setExerciseType(type);
-                    if (exerciseDuration) {
-                      const duration = parseInt(exerciseDuration);
-                      if (!isNaN(duration)) {
-                        const calories = calculateCaloriesBurned(
-                          type,
-                          duration
-                        );
-                        setExerciseCalories(calories.toString());
-                      }
-                    }
-                  }}
-                >
-                  <Text
+            <View style={styles.typeSelector}>
+              <Text style={styles.typeLabel}>Exercise Type:</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                nestedScrollEnabled={true}
+              >
+                {["strength", "cardio", "flexibility", "core"].map((type) => (
+                  <TouchableOpacity
+                    key={type}
                     style={[
-                      styles.typeButtonText,
-                      exerciseType === type && styles.selectedTypeButtonText,
+                      styles.typeButton,
+                      exerciseType === type && styles.selectedTypeButton,
                     ]}
+                    onPress={() => {
+                      setExerciseType(type);
+                      if (exerciseDuration) {
+                        const duration = parseInt(exerciseDuration);
+                        if (!isNaN(duration)) {
+                          const calories = calculateCaloriesBurned(
+                            type,
+                            duration
+                          );
+                          setExerciseCalories(calories.toString());
+                        }
+                      }
+                    }}
                   >
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
-          <TextInput
-            style={[styles.input, { color: COLORS.textPrimary }]}
-            placeholder="Duration (minutes)"
-            placeholderTextColor={COLORS.textTertiary}
-            value={exerciseDuration}
-            onChangeText={(text) => {
-              setExerciseDuration(text);
-              if (text && exerciseType) {
-                const duration = parseInt(text);
-                if (!isNaN(duration)) {
-                  const calories = calculateCaloriesBurned(
-                    exerciseType,
-                    duration
-                  );
-                  setExerciseCalories(calories.toString());
-                }
-              }
-            }}
-            keyboardType="numeric"
-          />
-
-          {exerciseCalories ? (
-            <View style={styles.caloriesContainer}>
-              <Text style={styles.caloriesLabel}>Calories Burned:</Text>
-              <Text style={styles.caloriesValue}>{exerciseCalories}</Text>
+                    <Text
+                      style={[
+                        styles.typeButtonText,
+                        exerciseType === type && styles.selectedTypeButtonText,
+                      ]}
+                    >
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
-          ) : (
-            <Text style={styles.caloriesHint}>
-              Enter an exercise name to auto-populate calories
-            </Text>
-          )}
 
-          <View style={styles.modalButtons}>
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => {
-                resetForm();
-                onClose();
+            <TextInput
+              style={[styles.input, { color: COLORS.textPrimary }]}
+              placeholder="Duration (minutes)"
+              placeholderTextColor={COLORS.textTertiary}
+              value={exerciseDuration}
+              onChangeText={(text) => {
+                setExerciseDuration(text);
+                if (text && exerciseType) {
+                  const duration = parseInt(text);
+                  if (!isNaN(duration)) {
+                    const calories = calculateCaloriesBurned(
+                      exerciseType,
+                      duration
+                    );
+                    setExerciseCalories(calories.toString());
+                  }
+                }
               }}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
+              keyboardType="numeric"
+            />
 
-            <TouchableOpacity
-              style={styles.saveButton}
-              onPress={handleAddCustomExercise}
-            >
-              <Text style={styles.saveButtonText}>Save</Text>
-            </TouchableOpacity>
-          </View>
+            {exerciseCalories ? (
+              <View style={styles.caloriesContainer}>
+                <Text style={styles.caloriesLabel}>Calories Burned:</Text>
+                <Text style={styles.caloriesValue}>{exerciseCalories}</Text>
+              </View>
+            ) : (
+              <Text style={styles.caloriesHint}>
+                Enter an exercise name to auto-populate calories
+              </Text>
+            )}
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => {
+                  resetForm();
+                  onClose();
+                }}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={handleAddCustomExercise}
+              >
+                <Text style={styles.saveButtonText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </View>
       </View>
     </Modal>

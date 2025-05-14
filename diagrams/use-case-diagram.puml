@@ -1,0 +1,109 @@
+@startuml AtleTech Use Case Diagram
+
+' Define actors
+actor "User" as user
+actor "Authentication System\n(Clerk)" as auth
+actor "Payment System\n(PayMongo)" as payment
+actor "Database System\n(Convex)" as db
+
+' Define use case packages
+rectangle "AtleTech Fitness App" {
+  ' Authentication & Profile Management
+  package "Authentication & Profile" {
+    usecase "Register/Login" as login
+    usecase "Manage Profile" as profile
+    usecase "Subscribe to Premium" as subscribe
+    usecase "Update Weight Goals" as weightGoals
+  }
+
+  ' Meal Planning & Nutrition
+  package "Meal Planning & Nutrition" {
+    usecase "Plan Meals" as planMeals
+    usecase "Track Calories" as trackCalories
+    usecase "View Nutritional Information" as viewNutrition
+    usecase "Add Custom Meals" as addMeals
+    usecase "Get Meal Recommendations" as mealRecommendations
+    usecase "Add Meals to Today's Food" as addToToday
+  }
+
+  ' Workout Management
+  package "Workout Management" {
+    usecase "View Weekly Workout Plan" as viewWorkouts
+    usecase "Track Exercises" as trackExercises
+    usecase "Complete Workouts" as completeWorkouts
+    usecase "View Workout History" as workoutHistory
+    usecase "Set Weight Goals" as setWeightGoals
+    usecase "Use Exercise Timer" as exerciseTimer
+  }
+
+  ' Progress Tracking
+  package "Progress Tracking" {
+    usecase "Track Steps" as trackSteps
+    usecase "Monitor Weight Changes" as monitorWeight
+    usecase "View Calorie History" as calorieHistory
+    usecase "Get Weight Predictions" as weightPredictions
+    usecase "Track Body Composition" as bodyComposition
+  }
+
+  ' Chat/Support
+  package "Chat & Support" {
+    usecase "Get Fitness Advice" as fitnessAdvice
+    usecase "View Progress Insights" as progressInsights
+  }
+}
+
+' Define relationships
+' User relationships
+user --> login
+user --> profile
+user --> subscribe
+user --> planMeals
+user --> trackCalories
+user --> viewNutrition
+user --> addMeals
+user --> viewWorkouts
+user --> trackExercises
+user --> completeWorkouts
+user --> workoutHistory
+user --> trackSteps
+user --> monitorWeight
+user --> calorieHistory
+user --> fitnessAdvice
+user --> setWeightGoals
+user --> exerciseTimer
+user --> addToToday
+
+' Authentication System relationships
+login --> auth
+profile --> auth
+subscribe --> auth
+
+' Payment System relationships
+subscribe --> payment
+
+' Database System relationships
+db <-- planMeals
+db <-- trackCalories
+db <-- addMeals
+db <-- trackExercises
+db <-- completeWorkouts
+db <-- workoutHistory
+db <-- monitorWeight
+db <-- calorieHistory
+db <-- profile
+db <-- weightPredictions
+db <-- bodyComposition
+db <-- progressInsights
+
+' Include relationships
+planMeals ..> mealRecommendations : <<include>>
+trackCalories ..> viewNutrition : <<include>>
+completeWorkouts ..> exerciseTimer : <<include>>
+monitorWeight ..> weightPredictions : <<include>>
+monitorWeight ..> bodyComposition : <<include>>
+progressInsights ..> calorieHistory : <<include>>
+progressInsights ..> workoutHistory : <<include>>
+addMeals ..> addToToday : <<extend>>
+viewWorkouts ..> setWeightGoals : <<extend>>
+
+@enduml

@@ -56,7 +56,7 @@ const WorkoutPlanner = () => {
   const startDate = last7Days.toISOString().split("T")[0];
 
   const exerciseHistory = useQuery(
-    api.exercise.getExerciseHistoryByDateRange,
+    api.recentWorkouts.getWorkoutHistoryByDateRange,
     convexUser?._id
       ? {
           userId: convexUser._id,
@@ -85,10 +85,14 @@ const WorkoutPlanner = () => {
   }
   const onRefresh = () => {
     setRefreshing(true);
+    // Increment the refresh trigger to force a refetch of the exercises data
     setRefreshTrigger((prev) => prev + 1);
+    // Add a longer timeout to ensure the database has time to update
     setTimeout(() => {
+      // Force another refresh to ensure we get the latest data
+      setRefreshTrigger((prev) => prev + 1);
       setRefreshing(false);
-    }, 1000);
+    }, 1500);
   };
   useEffect(() => {
     console.log("Refreshing exercises list with trigger:", refreshTrigger);
