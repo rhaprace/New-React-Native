@@ -10,70 +10,59 @@ import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useRouter } from "expo-router";
 import { COLORS } from "@/constants/theme";
-
-const checkPaymentStatus = async (sourceId: string) => {
-  try {
-    const PAYMONGO_SECRET_KEY =
-      process.env.EXPO_PUBLIC_PAYMONGO_SECRET_KEY || "";
-    const PAYMONGO_API_URL = "https://api.paymongo.com/v1";
-    const encodeBasicAuth = (key: string) => {
-      return btoa(`${key}:`);
-    };
-
-    console.log("Checking payment status for source:", sourceId);
-
-    // Fetch the source from PayMongo
-    const response = await fetch(`${PAYMONGO_API_URL}/sources/${sourceId}`, {
-      headers: {
-        Authorization: `Basic ${encodeBasicAuth(PAYMONGO_SECRET_KEY)}`,
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("PayMongo API error:", errorText);
-      throw new Error("Failed to fetch payment status");
-    }
-
-    const data = await response.json();
-    console.log("Payment status response:", JSON.stringify(data));
-
-    const status = data.data.attributes.status;
-    console.log("Payment status:", status);
-    return status;
-  } catch (error) {
-    console.error("Error checking payment status:", error);
-    return "error";
-  }
-};
+import { checkPaymentStatus } from "@/services/paymentService";
 
 export default function PaymentChecker() {
   const router = useRouter();
   const [checking, setChecking] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const { isAuthenticated } = useConvexAuth();
-
-  // Only fetch payment source if user is authenticated
+  const [checkTimeout, setCheckTimeout] = useState<number | null>(null);
   const paymentSource = useQuery(api.subscription.checkPaymentSource);
 
   const updateSubscription = useMutation(api.subscription.updateSubscription);
   const updatePromptSeen = useMutation(
     api.subscription.updateSubscriptionPromptSeen
   );
-
   useEffect(() => {
-    // Only proceed if the user is authenticated
     if (!isAuthenticated) {
       return;
     }
+    if (!paymentSource || !paymentSource.sourceId) {
+      return;
+    }
 
-    // Check if paymentSource exists and has a sourceId
+    // Increase timeout to 60 seconds to allow for PayMongo server issues
+    const timeout = setTimeout(() => {
+      console.log(
+        "Auth check timed out its working but in the api we have a problem identify when it causing it"
+      );
+
+      // Instead of immediately redirecting, show a message to the user
+      setStatus("timeout");
+
+      // Still redirect after a short delay to allow user to read the message
+      setTimeout(() => {
+        router.replace("/(tabs)");
+      }, 5000);
+    }, 60000);
+
+    setCheckTimeout(timeout);
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [isAuthenticated, paymentSource]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setStatus(null);
+      return;
+    }
     if (paymentSource && paymentSource.sourceId && !checking && !status) {
       checkPendingPayment();
     }
 
     const intervalId = setInterval(() => {
-      // Check if user is still authenticated and paymentSource exists before making API calls
       if (
         isAuthenticated &&
         paymentSource &&
@@ -85,11 +74,13 @@ export default function PaymentChecker() {
       }
     }, 5000);
 
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(intervalId);
+      setStatus(null);
+    };
   }, [paymentSource, status, isAuthenticated]);
 
   const checkPendingPayment = async () => {
-    // Check if user is authenticated and payment source exists
     if (!isAuthenticated || !paymentSource || !paymentSource.sourceId) return;
 
     setChecking(true);
@@ -104,13 +95,18 @@ export default function PaymentChecker() {
         return;
       }
       const paymentStatus = await checkPaymentStatus(paymentSource.sourceId);
-      setStatus(paymentStatus);
-
-      if (
+      if (typeof paymentStatus === "boolean") {
+        setStatus(paymentStatus ? "chargeable" : "failed");
+      } else {
+        setStatus(paymentStatus);
+      }
+      const isSuccessful =
+        paymentStatus === true ||
         paymentStatus === "chargeable" ||
         paymentStatus === "paid" ||
-        paymentStatus === "completed"
-      ) {
+        paymentStatus === "completed";
+
+      if (isSuccessful) {
         await processSuccessfulPayment();
       }
     } catch (error) {
@@ -122,7 +118,6 @@ export default function PaymentChecker() {
   };
 
   const processSuccessfulPayment = async () => {
-    // Check if user is authenticated and payment source exists before processing payment
     if (!isAuthenticated || !paymentSource) {
       console.log(
         "User is not authenticated or payment source is missing, cannot process payment"
@@ -148,22 +143,15 @@ export default function PaymentChecker() {
       });
 
       await updatePromptSeen();
-
-      // Redirect to profile page for new users
       router.replace("/(tabs)/profile");
     } catch (error) {
       console.error("Error processing payment:", error);
-      // Set status to error so user can try again
       setStatus("error");
     }
   };
-
-  // Don't show anything if user is not authenticated
   if (!isAuthenticated) {
     return null;
   }
-
-  // Don't show anything if there's no payment source to check
   if (!paymentSource || !paymentSource.sourceId) {
     return null;
   }
@@ -236,6 +224,23 @@ export default function PaymentChecker() {
                 There was an error checking your payment status.
               </Text>
               <Button title="Try Again" onPress={checkPendingPayment} />
+            </>
+          )}
+
+          {status === "timeout" && (
+            <>
+              <Text style={styles.errorMessage}>
+                Payment service temporarily unavailable
+              </Text>
+              <Text style={styles.message}>
+                The payment service is experiencing technical difficulties. Your
+                payment may still be processing. Please check your account
+                status later.
+              </Text>
+              <Button
+                title="Continue to App"
+                onPress={() => router.replace("/(tabs)")}
+              />
             </>
           )}
         </>

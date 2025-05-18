@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, Text } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS } from "@/constants/theme";
 import { styles } from "@/styles/[day].style";
-import { useEvent } from "expo";
-import { VideoView, useVideoPlayer } from "expo-video";
+import { Video, ResizeMode } from "expo-av";
 
 type VideoMap = {
   [key: string]: any;
@@ -36,20 +35,19 @@ type ExerciseVideoProps = {
 
 const ExerciseVideo = ({ videoUrl }: ExerciseVideoProps) => {
   const [error, setError] = useState<string | null>(null);
-  const videoPlayer = useVideoPlayer(
-    videoUrl ? getExerciseVideo(videoUrl) : null,
-    (player) => {
-      player.loop = true;
-    }
-  );
-  const { status } = useEvent(videoPlayer, "statusChange", {
-    status: videoPlayer.status,
-  });
+  const [status, setStatus] = useState<any>({});
+  const videoRef = useRef<Video | null>(null);
+
   useEffect(() => {
-    if (status === "error") {
-      setError("Error loading video");
+    if (videoRef.current) {
+      videoRef.current.setIsMutedAsync(true);
     }
-  }, [status]);
+  }, []);
+
+  const handleError = (error: string) => {
+    console.error("Video error:", error);
+    setError("Error loading video");
+  };
 
   if (!videoUrl) {
     return (
@@ -86,6 +84,7 @@ const ExerciseVideo = ({ videoUrl }: ExerciseVideoProps) => {
       </View>
     );
   }
+
   if (error) {
     return (
       <View style={styles.videoPlaceholder}>
@@ -105,14 +104,15 @@ const ExerciseVideo = ({ videoUrl }: ExerciseVideoProps) => {
 
   return (
     <View style={[styles.videoContainer, { height: 300 }]}>
-      <VideoView
-        player={videoPlayer}
+      <Video
+        ref={videoRef}
+        source={getExerciseVideo(videoUrl)}
         style={styles.videoPlayer}
-        contentFit="contain"
-        nativeControls={true}
-        onFirstFrameRender={() => {
-          console.log("Video first frame rendered");
-        }}
+        resizeMode={ResizeMode.CONTAIN}
+        isLooping
+        useNativeControls
+        onError={(error) => handleError(error as string)}
+        onPlaybackStatusUpdate={(status) => setStatus(() => status)}
       />
     </View>
   );

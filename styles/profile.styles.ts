@@ -1,7 +1,7 @@
 import { StyleSheet, Dimensions } from "react-native";
-import { COLORS,FONT, SPACING, RADIUS, SHADOW  } from "@/constants/theme";
+import { COLORS, FONT, SPACING, RADIUS, SHADOW } from "@/constants/theme";
 
-const {width} = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 
 export const styles = StyleSheet.create({
   container: {
@@ -14,6 +14,7 @@ export const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: SPACING.lg,
+    paddingTop: 40,
   },
   headerTitle: {
     fontSize: FONT.size.xxl,

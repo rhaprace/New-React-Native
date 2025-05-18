@@ -23,8 +23,6 @@ export default function SubscriptionManage() {
   const { user } = useUser();
   const [loading, setLoading] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-
-  // Get current subscription status
   const checkSubscription = useMutation(
     api.subscription.checkSubscriptionStatus
   );
@@ -34,8 +32,6 @@ export default function SubscriptionManage() {
     setLoading(true);
     try {
       const currentStatus = await checkSubscription();
-
-      // Calculate prorated refund if applicable
       const now = new Date();
       const endDate = new Date(currentStatus.endDate || "");
       const daysRemaining = Math.ceil(
@@ -46,8 +42,6 @@ export default function SubscriptionManage() {
       );
       const refundAmount =
         daysRemaining > 0 ? Math.round(1000 * (daysRemaining / totalDays)) : 0; // Assuming 1000 as base amount
-
-      // Update subscription status
       await updateSubscription({
         subscription: "inactive",
         paymentDetails: {
@@ -101,7 +95,6 @@ export default function SubscriptionManage() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.scrollView}>
         <View style={styles.container}>
-          {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.backButton}
@@ -112,8 +105,6 @@ export default function SubscriptionManage() {
             <Text style={styles.title}>Subscription Management</Text>
             <View style={styles.placeholder} />
           </View>
-
-          {/* Current Plan Details */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Current Plan</Text>
             <View style={styles.planDetails}>
@@ -121,8 +112,6 @@ export default function SubscriptionManage() {
               <Text style={styles.planStatus}>Active</Text>
             </View>
           </View>
-
-          {/* Plan Actions */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Plan Actions</Text>
             <Button
@@ -144,8 +133,6 @@ export default function SubscriptionManage() {
               Cancel Subscription
             </Button>
           </View>
-
-          {/* Cancellation Confirmation Modal */}
           {showCancelConfirm && (
             <View style={styles.modalOverlay}>
               <View style={styles.modalContent}>

@@ -45,10 +45,11 @@ const MealsList: React.FC<MealsListProps> = ({ todaysMeals }) => {
           style={styles.addButton}
           onPress={() => router.push("/meal")}
         >
-          ADD FOOD
+          <Text variant="button" color="primary">
+            ADD FOOD
+          </Text>
         </Button>
-      </View>
-
+      </View>{" "}
       {todaysMeals && todaysMeals.length > 0 ? (
         <FlatList
           data={todaysMeals}
@@ -70,7 +71,7 @@ const MealsList: React.FC<MealsListProps> = ({ todaysMeals }) => {
                   size={18}
                   color={COLORS.primary}
                 />
-                <Text style={styles.mealTypeText}>
+                <Text variant="body2" weight="semibold" color="primary">
                   {item.mealType
                     ? item.mealType.charAt(0).toUpperCase() +
                       item.mealType.slice(1)
@@ -78,26 +79,28 @@ const MealsList: React.FC<MealsListProps> = ({ todaysMeals }) => {
                 </Text>
               </View>
               <View style={styles.mealContent}>
-                <Text style={styles.mealName}>{item.name}</Text>
+                <Text variant="body1" weight="semibold">
+                  {item.name}
+                </Text>
                 <View style={styles.mealNutrition}>
                   <View style={styles.nutritionPill}>
-                    <Text style={styles.nutritionPillText}>
-                      {item.calories} cal
+                    <Text variant="caption" color="primary">
+                      <Text weight="semibold">{item.calories}</Text> cal
                     </Text>
                   </View>
                   <View style={styles.nutritionPill}>
-                    <Text style={styles.nutritionPillText}>
-                      {item.protein}g protein
+                    <Text variant="caption" color="primary">
+                      <Text weight="semibold">{item.protein}g</Text> protein
                     </Text>
                   </View>
                   <View style={styles.nutritionPill}>
-                    <Text style={styles.nutritionPillText}>
-                      {item.carbs}g carbs
+                    <Text variant="caption" color="primary">
+                      <Text weight="semibold">{item.carbs}g</Text> carbs
                     </Text>
                   </View>
                   <View style={styles.nutritionPill}>
-                    <Text style={styles.nutritionPillText}>
-                      {item.fat}g fat
+                    <Text variant="caption" color="primary">
+                      <Text weight="semibold">{item.fat}g</Text> fat
                     </Text>
                   </View>
                 </View>
@@ -107,7 +110,7 @@ const MealsList: React.FC<MealsListProps> = ({ todaysMeals }) => {
         />
       ) : (
         <View style={styles.emptyContainer}>
-          <Text variant="body1" color="secondary" style={styles.emptyText}>
+          <Text variant="body1" color="secondary">
             No meals logged today
           </Text>
         </View>

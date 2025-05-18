@@ -39,7 +39,52 @@ function formatDayConsistently(day: string): string {
   return day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
 }
 
-// Helper functions to reduce code duplication
+// Helper function to subtract macros and update user macro tracking
+async function subtractMacros(
+  ctx: any,
+  userId: any,
+  calories: number,
+  protein: number,
+  carbs: number,
+  fat: number
+) {
+  const user = await ctx.db.get(userId);
+  if (!user) throw new Error("User not found");
+
+  // Get today's date in YYYY-MM-DD format
+  const today = new Date().toISOString().split("T")[0];
+
+  // Reset macros if it's a new day
+  if (user.lastMacroResetDate !== today) {
+    await ctx.db.patch(userId, {
+      dailyCalories: 2000, // Default daily values
+      dailyProtein: 150,
+      dailyCarbs: 250,
+      dailyFat: 70,
+      lastMacroResetDate: today,
+    });
+    user.dailyCalories = 2000;
+    user.dailyProtein = 150;
+    user.dailyCarbs = 250;
+    user.dailyFat = 70;
+  }
+
+  // Calculate remaining macros
+  const remainingCalories = Math.max(0, (user.dailyCalories || 0) - calories);
+  const remainingProtein = Math.max(0, (user.dailyProtein || 0) - protein);
+  const remainingCarbs = Math.max(0, (user.dailyCarbs || 0) - carbs);
+  const remainingFat = Math.max(0, (user.dailyFat || 0) - fat);
+
+  // Update user's remaining macros
+  await ctx.db.patch(userId, {
+    dailyCalories: remainingCalories,
+    dailyProtein: remainingProtein,
+    dailyCarbs: remainingCarbs,
+    dailyFat: remainingFat,
+  });
+}
+
+// Helper function for duplicate checking
 async function findExistingMeal(
   ctx: any,
   userId: any,
@@ -47,7 +92,7 @@ async function findExistingMeal(
   name: string,
   mealType: string
 ) {
-  // Normalize the meal name and type for consistent comparison
+  // Normalize inputs for consistent comparison
   const normalizedName = name.trim();
   const normalizedMealType = mealType.trim().toLowerCase();
 
@@ -55,7 +100,6 @@ async function findExistingMeal(
     `Searching for existing meal: ${normalizedName}, type: ${normalizedMealType}, date: ${date}`
   );
 
-  // First, get all meals for this user and date
   const meals = await ctx.db
     .query("meal")
     .withIndex("by_user_date", (q: any) =>
@@ -63,8 +107,7 @@ async function findExistingMeal(
     )
     .collect();
 
-  // Then filter for exact matches on name and meal type
-  // This is more precise than the database filter and allows for case-insensitive comparison
+  // Check for exact match with case-insensitive comparison
   const exactMatch = meals.find(
     (meal: any) =>
       meal.name.trim().toLowerCase() === normalizedName.toLowerCase() &&
@@ -80,6 +123,7 @@ async function findExistingMeal(
   return exactMatch;
 }
 
+// Helper functions to reduce code duplication
 async function findExistingAddedMeal(
   ctx: any,
   userId: any,
@@ -87,7 +131,6 @@ async function findExistingAddedMeal(
   mealName: string,
   mealType: string
 ) {
-  // Normalize the meal name and type for consistent comparison
   const normalizedName = mealName.trim();
   const normalizedMealType = mealType.trim().toLowerCase();
 
@@ -95,14 +138,11 @@ async function findExistingAddedMeal(
     `Searching for existing added meal: ${normalizedName}, type: ${normalizedMealType}, date: ${date}`
   );
 
-  // First, get all added meals for this user
   const meals = await ctx.db
     .query("addedMeals")
     .withIndex("by_user", (q: any) => q.eq("userId", userId))
     .collect();
 
-  // Then filter for exact matches on name, meal type, and date
-  // This is more precise than the database filter and allows for case-insensitive comparison
   const exactMatch = meals.find(
     (meal: any) =>
       meal.mealName.trim().toLowerCase() === normalizedName.toLowerCase() &&
@@ -142,7 +182,7 @@ export const createMeal = mutation({
       args.mealType
     );
 
-    // If we found an exact duplicate, return it
+    // If we found an exact duplicate, don't create another one
     if (existingMeal) {
       console.log(
         `Found duplicate meal: ${args.name} for ${args.date}, ${args.mealType}`
@@ -152,6 +192,16 @@ export const createMeal = mutation({
 
     // Ensure day is properly formatted using our consistent helper
     const formattedDay = formatDayConsistently(args.day);
+
+    // Subtract macros from user's daily totals
+    await subtractMacros(
+      ctx,
+      args.userId,
+      args.calories,
+      args.protein,
+      args.carbs,
+      args.fat
+    );
 
     console.log(
       `Creating new meal: ${args.name} for ${args.date}, ${args.mealType}`

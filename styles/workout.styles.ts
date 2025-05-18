@@ -1,38 +1,10 @@
 import { StyleSheet } from "react-native";
-import { COLORS, SLATE, SHADOW } from "@/constants/theme";
+import { COLORS, SLATE, SHADOW, SPACING } from "@/constants/theme";
+import { commonStyles } from "./commonStyles";
 
 export const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: SLATE.slate_50,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: SLATE.slate_50,
-  },
-  header: {
-    backgroundColor: COLORS.primary,
-    paddingTop: 60,
-    paddingBottom: 24,
-    paddingHorizontal: 24,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    ...SHADOW.lg,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: COLORS.textOnPrimary,
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: COLORS.textOnPrimary,
-    opacity: 0.8,
-    marginBottom: 16,
-  },
+  ...commonStyles,
+  // Specific workout styles
   goalSelector: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -95,11 +67,16 @@ export const styles = StyleSheet.create({
     padding: 16,
     ...SHADOW.sm,
   },
+  sectionTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.xs,
+  },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
   sectionTitle: {
     fontSize: 18,
@@ -108,8 +85,8 @@ export const styles = StyleSheet.create({
   },
   addButton: {
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
     borderRadius: 8,
   },
   addButtonText: {
@@ -119,11 +96,12 @@ export const styles = StyleSheet.create({
   },
   exerciseItem: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
+    justifyContent: "space-between",
+    padding: SPACING.sm,
+    backgroundColor: COLORS.surfaceAlt,
+    borderRadius: 8,
+    marginBottom: SPACING.sm,
   },
   exerciseInfo: {
     flex: 1,
@@ -141,12 +119,16 @@ export const styles = StyleSheet.create({
   exerciseActions: {
     flexDirection: "row",
     alignItems: "center",
+    gap: SPACING.xs,
   },
   timerButton: {
-    backgroundColor: COLORS.surfaceAlt,
-    padding: 8,
-    borderRadius: 8,
-    marginRight: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.surfaceLight,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: 6,
+    gap: SPACING.xs,
   },
   deleteButton: {
     backgroundColor: COLORS.error,
@@ -208,12 +190,8 @@ export const styles = StyleSheet.create({
     fontWeight: "600",
   },
   timerDisplay: {
-    backgroundColor: COLORS.surfaceAlt,
-    borderRadius: 16,
-    padding: 24,
     alignItems: "center",
-    justifyContent: "center",
-    marginVertical: 24,
+    marginVertical: SPACING.lg,
   },
   timerText: {
     fontSize: 48,
@@ -223,12 +201,17 @@ export const styles = StyleSheet.create({
   },
   timerControls: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    marginBottom: 24,
+    justifyContent: "center",
+    gap: SPACING.md,
+    marginBottom: SPACING.lg,
   },
   timerControlButton: {
+    flexDirection: "row",
     alignItems: "center",
-    padding: 12,
+    backgroundColor: COLORS.surfaceLight,
+    padding: SPACING.sm,
+    borderRadius: 8,
+    gap: SPACING.xs,
   },
   timerControlText: {
     fontSize: 16,
@@ -237,7 +220,8 @@ export const styles = StyleSheet.create({
   },
   emptyContainer: {
     alignItems: "center",
-    paddingVertical: 24,
+    justifyContent: "center",
+    padding: SPACING.xl,
   },
   emptyText: {
     fontSize: 16,
@@ -304,21 +288,20 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "rgba(15, 23, 42, 0.7)", // Darker background for better contrast
-    paddingHorizontal: 16, // Add padding to prevent modal from touching screen edges
+    paddingHorizontal: SPACING.md,
   },
   modalContent: {
     backgroundColor: COLORS.surface,
     borderRadius: 16,
-    padding: 24,
+    padding: SPACING.xl,
     width: "90%",
     maxHeight: "90%",
-    overflow: "hidden", // Changed to hidden to prevent overflow issues
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: "bold",
     color: COLORS.textPrimary,
-    marginBottom: 16,
+    marginBottom: SPACING.lg,
     textAlign: "center",
   },
   input: {
@@ -436,10 +419,10 @@ export const styles = StyleSheet.create({
   },
   closeButton: {
     backgroundColor: COLORS.primary,
-    paddingVertical: 12,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
     borderRadius: 8,
     alignItems: "center",
-    marginTop: 16,
   },
   closeButtonText: {
     color: COLORS.textOnPrimary,
@@ -447,9 +430,10 @@ export const styles = StyleSheet.create({
     fontWeight: "600",
   },
   historyItem: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.divider,
-    paddingVertical: 12,
+    backgroundColor: COLORS.surfaceAlt,
+    borderRadius: 8,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   historyDate: {
     fontSize: 16,
@@ -460,10 +444,12 @@ export const styles = StyleSheet.create({
   historyDetails: {
     flexDirection: "row",
     justifyContent: "space-between",
+    marginTop: SPACING.sm,
   },
   historyDetail: {
     flexDirection: "row",
     alignItems: "center",
+    gap: SPACING.xs,
   },
   historyValue: {
     fontSize: 14,

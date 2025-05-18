@@ -1,5 +1,11 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React, { useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  BackHandler,
+  ActivityIndicator,
+} from "react-native";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useRouter } from "expo-router";
@@ -14,38 +20,66 @@ export default function Gate({ children }: { children: React.ReactNode }) {
   const userSubscription = useQuery(api.users.getUserByClerkId, {
     clerkId: user?.id || "",
   });
-
-  // If user has an active subscription, show the content
-  if (userSubscription && userSubscription.subscription === "active") {
-    return <>{children}</>;
-  }
-
-  // If user has a free trial, show the content but also check for expiration
-  if (userSubscription && userSubscription.subscription === "free_trial") {
+  if (user?.id && !userSubscription) {
     return (
-      <>
-        <TrialExpirationChecker />
-        {children}
-      </>
+      <View style={[styles.container, { backgroundColor: COLORS.background }]}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>
+            Checking subscription status...
+          </Text>
+          <ActivityIndicator
+            size="large"
+            color={COLORS.primary}
+            style={{ marginTop: SPACING.md }}
+          />
+        </View>
+      </View>
     );
   }
+  useEffect(() => {
+    const handleBackPress = () => {
+      router.push("/subscription/plans");
+      return true;
+    };
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      handleBackPress
+    );
+    return () => subscription.remove();
+  }, [userSubscription, router]);
+  const hasAccess =
+    userSubscription?.subscription === "active" ||
+    userSubscription?.subscription === "free_trial";
+  const showAccessModal = !hasAccess;
 
-  // Otherwise, show the subscription gate
-  return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Access Restricted</Text>
-      <Text style={styles.message}>
-        You need an active subscription to access this feature.
-      </Text>
-      <Button
-        variant="primary"
-        size="lg"
-        onPress={() => router.push("../subscription/plans")}
-      >
-        Subscribe Now
-      </Button>
-    </View>
-  );
+  if (showAccessModal) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Access Restricted</Text>
+        <Text style={styles.message}>
+          You need an active subscription to access this feature.
+        </Text>
+        <Button
+          variant="primary"
+          size="lg"
+          onPress={() => router.push("/subscription/plans")}
+        >
+          Subscribe Now
+        </Button>
+      </View>
+    );
+  }
+  if (hasAccess) {
+    if (userSubscription.subscription === "free_trial") {
+      return (
+        <>
+          <TrialExpirationChecker />
+          {children}
+        </>
+      );
+    }
+    return <>{children}</>;
+  }
 }
 
 const styles = StyleSheet.create({
@@ -55,6 +89,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: SPACING.lg,
     backgroundColor: COLORS.background,
+  },
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    fontSize: FONT.size.md,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.sm,
   },
   title: {
     fontSize: FONT.size.xxl,
@@ -67,6 +110,5 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     textAlign: "center",
     marginBottom: SPACING.lg,
-    maxWidth: "80%",
   },
 });

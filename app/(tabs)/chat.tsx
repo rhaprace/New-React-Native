@@ -31,10 +31,7 @@ export default function Chat() {
 
   const generateResponse = useMutation(api.chat.generateBotResponse);
   const initChatReset = useAction(api.initChatReset.initChatResetSchedule);
-
-  // Initialize chat reset schedule when the component mounts
   useEffect(() => {
-    // Only initialize once when the component mounts
     initChatReset()
       .then((result) => console.log("Chat reset scheduled:", result))
       .catch((error) => console.error("Failed to schedule chat reset:", error));

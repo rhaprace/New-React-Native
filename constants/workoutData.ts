@@ -25,6 +25,15 @@ export const weeklyWorkouts: DailyWorkout[] = [
           "Lie on a flat bench with your feet on the ground. Grip the barbell slightly wider than shoulder-width. Lower the bar to your chest, then press it back up to the starting position.",
       },
       {
+        name: "Dumbbell Bench Press",
+        type: "strength",
+        duration: 40,
+        caloriesBurned: 250,
+        videoUrl: "bench-press.mp4",
+        instructions:
+          "Lie on a flat bench with your feet firmly on the ground. Hold a dumbbell in each hand at chest level. Press the dumbbells straight up until your arms are extended, then slowly lower them back to chest level. Keep your core engaged throughout the movement.",
+      },
+      {
         name: "Incline Dumbbell Press",
         type: "strength",
         duration: 30,

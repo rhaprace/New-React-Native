@@ -1,9 +1,9 @@
-import { StyleSheet, Platform, Dimensions } from 'react-native';
-import { COLORS, SPACING, RADIUS, SLATE } from '@/constants/theme';
+import { StyleSheet, Platform, Dimensions } from "react-native";
+import { COLORS, SPACING, RADIUS, SLATE } from "@/constants/theme";
 
 // Get the height of the tab bar to ensure proper spacing
 const TAB_BAR_HEIGHT = 60;
-const { height } = Dimensions.get('window');
+const { height } = Dimensions.get("window");
 
 export const styles = StyleSheet.create({
   safeArea: {
@@ -16,8 +16,8 @@ export const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: COLORS.background,
   },
   header: {
@@ -25,7 +25,8 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
     backgroundColor: COLORS.surface,
-    alignItems: 'center',
+    alignItems: "center",
+    paddingTop: 40,
   },
   chatContainer: {
     flex: 1,
@@ -35,16 +36,16 @@ export const styles = StyleSheet.create({
     paddingBottom: SPACING.xl,
   },
   inputContainer: {
-    paddingBottom: Platform.OS === 'ios' ? TAB_BAR_HEIGHT : TAB_BAR_HEIGHT + 10,
+    paddingBottom: Platform.OS === "ios" ? TAB_BAR_HEIGHT : TAB_BAR_HEIGHT + 10,
   },
   emptyStateContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: SPACING.lg,
   },
   emptyStateText: {
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: SPACING.md,
   },
 });

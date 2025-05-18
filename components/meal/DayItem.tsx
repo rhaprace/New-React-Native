@@ -36,7 +36,7 @@ interface DayItemProps {
   index: number;
   expandedDay: string | null;
   onToggleDay: (day: string) => void;
-  onAddMeal: (day: string, type: string) => void;
+
   onOpenRecommendations: (day: string, type: string) => void;
   onOpenCustomMealModal: (day: string) => void;
   onDeleteMeal?: (mealId: any) => void;
@@ -48,7 +48,7 @@ const DayItem: React.FC<DayItemProps> = ({
   index,
   expandedDay,
   onToggleDay,
-  onAddMeal,
+
   onOpenRecommendations,
   onOpenCustomMealModal,
   onDeleteMeal,
@@ -83,7 +83,10 @@ const DayItem: React.FC<DayItemProps> = ({
           </Text>
           <View style={styles.dailyTotalsContainer}>
             <Text variant="body2" color="secondary">
-              {dailyTotals.calories} cal | {dailyTotals.protein}g protein
+              <Text>{dailyTotals.calories}</Text>
+              <Text> cal | </Text>
+              <Text>{dailyTotals.protein}g</Text>
+              <Text> protein</Text>
             </Text>
           </View>
         </View>
@@ -99,7 +102,6 @@ const DayItem: React.FC<DayItemProps> = ({
           <FoodListItem
             meal={item.breakfast}
             mealType="Breakfast"
-            onAddMeal={() => onAddMeal(formatDay(item.day), "Breakfast")}
             onRecommend={() =>
               onOpenRecommendations(formatDay(item.day), "Breakfast")
             }
@@ -110,7 +112,6 @@ const DayItem: React.FC<DayItemProps> = ({
           <FoodListItem
             meal={item.lunch}
             mealType="Lunch"
-            onAddMeal={() => onAddMeal(formatDay(item.day), "Lunch")}
             onRecommend={() =>
               onOpenRecommendations(formatDay(item.day), "Lunch")
             }
@@ -121,7 +122,6 @@ const DayItem: React.FC<DayItemProps> = ({
           <FoodListItem
             meal={item.dinner}
             mealType="Dinner"
-            onAddMeal={() => onAddMeal(formatDay(item.day), "Dinner")}
             onRecommend={() =>
               onOpenRecommendations(formatDay(item.day), "Dinner")
             }

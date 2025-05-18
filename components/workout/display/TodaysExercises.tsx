@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   FlatList,
   Modal,
@@ -10,10 +9,12 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS } from "@/constants/theme";
 import { styles } from "@/styles/workout.styles";
+import { Text } from "@/components/ui";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
+// Define a more flexible Exercise type that can handle both exercise and recentWorkouts IDs
 type Exercise = {
   name: string;
   type: string;
@@ -22,12 +23,13 @@ type Exercise = {
   day: string;
   date: string;
   isCompleted: boolean;
-  _id?: Id<"exercise"> | string;
+  _id?: Id<"exercise"> | Id<"recentWorkouts">;
+  source?: string; // To track which table the exercise came from
 };
 
 interface TodaysExercisesProps {
-  exercises: Exercise[] | undefined;
-  userId: Id<"users">;
+  exercises?: Exercise[];
+  userId?: Id<"users">;
   onAddExercise: () => void;
   refreshing?: boolean;
   onRefresh?: () => void;
@@ -163,16 +165,34 @@ const TodaysExercises: React.FC<TodaysExercisesProps> = ({
   return (
     <View style={styles.sectionContainer}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Today's Exercises</Text>
+        <View style={styles.sectionTitleContainer}>
+          <MaterialCommunityIcons
+            name="dumbbell"
+            size={22}
+            color={COLORS.primary}
+          />
+          <Text variant="h5" weight="semibold">
+            Today's Exercises
+          </Text>
+        </View>
         <TouchableOpacity style={styles.addButton} onPress={onAddExercise}>
-          <Text style={styles.addButtonText}>Add Exercise</Text>
+          <Text variant="body1" weight="semibold" color="onPrimary">
+            Add Exercise
+          </Text>
         </TouchableOpacity>
       </View>
 
       {exercises && exercises.length > 0 ? (
         <FlatList
           data={exercises}
-          keyExtractor={(item) => item._id || ""}
+          keyExtractor={(item) => {
+            // Create a unique key that works for both exercise and recentWorkouts IDs
+            if (item._id) {
+              return item._id.toString();
+            }
+            // Fallback to a combination of name and date if no ID is available
+            return `${item.name}-${item.date}-${Math.random().toString(36).substring(7)}`;
+          }}
           refreshControl={
             onRefresh ? (
               <RefreshControl
@@ -187,8 +207,10 @@ const TodaysExercises: React.FC<TodaysExercisesProps> = ({
           renderItem={({ item }) => (
             <View style={styles.exerciseItem}>
               <View style={styles.exerciseInfo}>
-                <Text style={styles.exerciseName}>{item.name}</Text>
-                <Text style={styles.exerciseDetails}>
+                <Text variant="body1" weight="semibold">
+                  {item.name}
+                </Text>
+                <Text variant="caption" color="secondary">
                   {item.duration} mins • {item.caloriesBurned} cal
                 </Text>
               </View>
@@ -208,13 +230,7 @@ const TodaysExercises: React.FC<TodaysExercisesProps> = ({
                     }
                   />
                   {!item.isCompleted && (
-                    <Text
-                      style={{
-                        marginLeft: 4,
-                        color: COLORS.primary,
-                        fontWeight: "600",
-                      }}
-                    >
+                    <Text variant="body2" weight="semibold" color="primary">
                       Start
                     </Text>
                   )}
@@ -225,8 +241,10 @@ const TodaysExercises: React.FC<TodaysExercisesProps> = ({
         />
       ) : (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No exercises for today</Text>
-          <Text style={styles.emptySubtext}>
+          <Text variant="body1" color="secondary">
+            No exercises for today
+          </Text>
+          <Text variant="caption" color="tertiary">
             Add a custom exercise or select from weekly plan
           </Text>
         </View>
@@ -241,12 +259,14 @@ const TodaysExercises: React.FC<TodaysExercisesProps> = ({
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
+            <Text variant="h5" weight="semibold">
               {selectedExercise?.name || "Exercise"} Timer
             </Text>
 
             <View style={styles.timerDisplay}>
-              <Text style={styles.timerText}>{timeDisplay}</Text>
+              <Text variant="h3" weight="bold" color="primary">
+                {timeDisplay}
+              </Text>
             </View>
 
             <View style={styles.timerControls}>
@@ -259,7 +279,7 @@ const TodaysExercises: React.FC<TodaysExercisesProps> = ({
                   size={24}
                   color={COLORS.primary}
                 />
-                <Text style={styles.timerControlText}>
+                <Text variant="body2" weight="medium" color="primary">
                   {isRunning ? "Pause" : "Start"}
                 </Text>
               </TouchableOpacity>
@@ -273,12 +293,16 @@ const TodaysExercises: React.FC<TodaysExercisesProps> = ({
                   size={24}
                   color={COLORS.secondary}
                 />
-                <Text style={styles.timerControlText}>Reset</Text>
+                <Text variant="body2" weight="medium" color="secondary">
+                  Reset
+                </Text>
               </TouchableOpacity>
             </View>
 
             <TouchableOpacity style={styles.closeButton} onPress={closeTimer}>
-              <Text style={styles.closeButtonText}>Close</Text>
+              <Text variant="body1" weight="semibold" color="onPrimary">
+                Close
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

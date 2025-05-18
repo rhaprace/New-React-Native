@@ -10,6 +10,7 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useUser, useAuth } from "@clerk/clerk-expo";
@@ -36,8 +37,6 @@ type ActivityLevel =
   | "Moderately Active"
   | "Very Active"
   | "Extremely Active";
-
-// Map our activity levels to the ones in metabolicCalculations
 const activityLevelMap: Record<ActivityLevel, MetabolicActivityLevel> = {
   Sedentary: "Sedentary",
   "Lightly Active": "Light",
@@ -45,8 +44,6 @@ const activityLevelMap: Record<ActivityLevel, MetabolicActivityLevel> = {
   "Very Active": "Active",
   "Extremely Active": "Very Active",
 };
-
-// For backward compatibility
 const activityMultipliers: Record<ActivityLevel, number> = {
   Sedentary: 1.2,
   "Lightly Active": 1.375,
@@ -57,13 +54,31 @@ const activityMultipliers: Record<ActivityLevel, number> = {
 
 const ProfilePage = () => {
   const { user } = useUser();
+  const { signOut } = useAuth();
+  const router = useRouter();
+  const updateProfile = useMutation(api.users.updateProfile);
+
   const convexUser = useQuery(api.users.getUserByClerkId, {
     clerkId: user?.id ?? "",
   });
   const profile = convexUser?.profile;
-  const { signOut } = useAuth();
-  const router = useRouter();
-  const updateProfile = useMutation(api.users.updateProfile);
+  if (!convexUser) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: COLORS.background,
+        }}
+      >
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={{ marginTop: 12, color: COLORS.textSecondary }}>
+          Loading your profile...
+        </Text>
+      </View>
+    );
+  }
 
   const [name, setName] = useState<string>("");
   const [isEditingName, setIsEditingName] = useState<boolean>(false);
@@ -88,8 +103,6 @@ const ProfilePage = () => {
   const [activityModalVisible, setActivityModalVisible] =
     useState<boolean>(false);
   const [error, setError] = useState<string>("");
-
-  // New state for BMR calculation method
   const [bmrMethod, setBmrMethod] = useState<"mifflin" | "cunningham">(
     "mifflin"
   );
@@ -149,17 +162,25 @@ const ProfilePage = () => {
       setError("Failed to save profile. Please try again.");
     }
   };
+  const clearPaymentSource = useMutation(api.subscription.clearPaymentSource);
 
   const handleSignOut = async () => {
     try {
-      // Save profile data if needed
       await saveProfile();
-
-      // Sign out the user
-      await signOut();
-
-      // Navigate directly to login screen
+      try {
+        await clearPaymentSource();
+      } catch (clearErr) {
+        console.error("Error clearing payment source:", clearErr);
+      }
       router.replace("/(auth)/login");
+      setTimeout(async () => {
+        try {
+          await signOut();
+          console.log("User signed out successfully");
+        } catch (signOutErr) {
+          console.error("Error during sign-out:", signOutErr);
+        }
+      }, 500);
     } catch (err) {
       console.error("Error during sign-out:", err);
       Alert.alert("Error", "Failed to sign out. Please try again.");
@@ -173,7 +194,6 @@ const ProfilePage = () => {
     gender: Gender
   ): number => {
     if (gender === "Other") {
-      // For "Other" gender, use an average of male and female calculations
       const maleBMR = calculateBMRMifflinStJeor(weight, height, age, "Male");
       const femaleBMR = calculateBMRMifflinStJeor(
         weight,
@@ -185,7 +205,6 @@ const ProfilePage = () => {
     }
 
     if (bmrMethod === "mifflin") {
-      // Use Mifflin-St Jeor equation (more accurate for general population)
       return calculateBMRMifflinStJeor(
         weight,
         height,
@@ -193,8 +212,6 @@ const ProfilePage = () => {
         gender as MetabolicGender
       );
     } else {
-      // Use Cunningham equation (better for athletic individuals)
-      // First estimate lean body mass since we don't have body fat percentage
       const lbm = estimateLeanBodyMass(
         weight,
         height,
@@ -212,13 +229,9 @@ const ProfilePage = () => {
     activityLevel: ActivityLevel
   ): number => {
     const bmr = calculateBMR(weight, height, age, gender);
-
-    // Use the new TDEE calculation function
     if (activityLevel in activityLevelMap) {
       return calculateTDEE(bmr, activityLevelMap[activityLevel]);
     }
-
-    // Fallback to old method
     const multiplier = activityMultipliers[activityLevel];
     return Math.round(bmr * multiplier);
   };

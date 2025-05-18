@@ -1,6 +1,12 @@
-import { StyleSheet, Dimensions } from "react-native";
-import { COLORS, SLATE } from "@/constants/theme";
-
+import { StyleSheet, Dimensions, Platform } from "react-native";
+import {
+  COLORS,
+  SPACING,
+  RADIUS,
+  SHADOW,
+  SLATE,
+  FONT,
+} from "@/constants/theme";
 const { width } = Dimensions.get("window");
 
 export const styles = StyleSheet.create({
@@ -24,22 +30,23 @@ export const styles = StyleSheet.create({
     fontWeight: "500",
   },
   header: {
-    backgroundColor: COLORS.primary,
-    paddingTop: 20,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    shadowColor: SLATE.slate_900,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
+    backgroundColor: SLATE.slate_800,
+    paddingTop: 30,
+    paddingBottom: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+    marginBottom: SPACING.lg,
+    ...SHADOW.lg,
+    borderWidth: 1,
+    borderColor: SLATE.slate_700,
   },
   headerContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
+    paddingTop: Platform.OS === "ios" ? 0 : 16,
   },
   welcomeText: {
     fontSize: 16,
@@ -54,12 +61,14 @@ export const styles = StyleSheet.create({
   profileButton: {
     borderWidth: 2,
     borderColor: COLORS.white,
-    borderRadius: 30,
+    borderRadius: 25,
+    padding: 2,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
   profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   scrollView: {
     flex: 1,

@@ -1,18 +1,18 @@
-import React from 'react';
-import { 
-  TouchableOpacity, 
-  Text, 
-  StyleSheet, 
+import React from "react";
+import {
+  TouchableOpacity,
+  StyleSheet,
   ActivityIndicator,
   TouchableOpacityProps,
   StyleProp,
   ViewStyle,
-  TextStyle
-} from 'react-native';
-import { COLORS, FONT, RADIUS, SPACING } from '@/constants/theme';
+  TextStyle,
+} from "react-native";
+import { Text } from "@/components/ui";
+import { COLORS, FONT, RADIUS, SPACING } from "@/constants/theme";
 
-type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'text';
-type ButtonSize = 'sm' | 'md' | 'lg';
+type ButtonVariant = "primary" | "secondary" | "outline" | "text";
+type ButtonSize = "sm" | "md" | "lg";
 
 interface ButtonProps extends TouchableOpacityProps {
   variant?: ButtonVariant;
@@ -26,8 +26,8 @@ interface ButtonProps extends TouchableOpacityProps {
 }
 
 export const Button = ({
-  variant = 'primary',
-  size = 'md',
+  variant = "primary",
+  size = "md",
   loading = false,
   disabled = false,
   fullWidth = false,
@@ -39,62 +39,36 @@ export const Button = ({
   // Determine button styles based on variant
   const getButtonStyle = () => {
     switch (variant) {
-      case 'primary':
+      case "primary":
         return styles.primaryButton;
-      case 'secondary':
+      case "secondary":
         return styles.secondaryButton;
-      case 'outline':
+      case "outline":
         return styles.outlineButton;
-      case 'text':
+      case "text":
         return styles.textButton;
       default:
         return styles.primaryButton;
     }
   };
 
-  // Determine text styles based on variant
-  const getTextStyle = () => {
-    switch (variant) {
-      case 'primary':
-        return styles.primaryButtonText;
-      case 'secondary':
-        return styles.secondaryButtonText;
-      case 'outline':
-        return styles.outlineButtonText;
-      case 'text':
-        return styles.textButtonText;
-      default:
-        return styles.primaryButtonText;
-    }
-  };
+  // We're now using the custom Text component's props instead of text styles
 
   // Determine size styles
   const getSizeStyle = () => {
     switch (size) {
-      case 'sm':
+      case "sm":
         return styles.smallButton;
-      case 'md':
+      case "md":
         return styles.mediumButton;
-      case 'lg':
+      case "lg":
         return styles.largeButton;
       default:
         return styles.mediumButton;
     }
   };
 
-  // Determine text size styles
-  const getTextSizeStyle = () => {
-    switch (size) {
-      case 'sm':
-        return styles.smallButtonText;
-      case 'md':
-        return styles.mediumButtonText;
-      case 'lg':
-        return styles.largeButtonText;
-      default:
-        return styles.mediumButtonText;
-    }
-  };
+  // We're now using the custom Text component's variant prop for text sizing
 
   // Combine all styles
   const buttonStyles = [
@@ -106,12 +80,7 @@ export const Button = ({
     style,
   ];
 
-  const textStyles = [
-    getTextStyle(),
-    getTextSizeStyle(),
-    disabled && styles.disabledText,
-    textStyle,
-  ];
+  // We're now using the custom Text component's props instead of styles
 
   return (
     <TouchableOpacity
@@ -121,12 +90,29 @@ export const Button = ({
       {...props}
     >
       {loading ? (
-        <ActivityIndicator 
-          size="small" 
-          color={variant === 'outline' || variant === 'text' ? COLORS.primary : COLORS.textOnPrimary} 
+        <ActivityIndicator
+          size="small"
+          color={
+            variant === "outline" || variant === "text"
+              ? COLORS.primary
+              : COLORS.textOnPrimary
+          }
         />
       ) : (
-        <Text style={textStyles}>{children}</Text>
+        <Text
+          variant="button"
+          color={
+            variant === "primary"
+              ? "onPrimary"
+              : variant === "secondary"
+                ? "onSecondary"
+                : "primary"
+          }
+          weight="semibold"
+          style={textStyle}
+        >
+          {children}
+        </Text>
       )}
     </TouchableOpacity>
   );
@@ -135,11 +121,11 @@ export const Button = ({
 const styles = StyleSheet.create({
   button: {
     borderRadius: RADIUS.md,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   fullWidth: {
-    width: '100%',
+    width: "100%",
   },
   // Variant styles
   primaryButton: {
@@ -149,12 +135,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.secondary,
   },
   outlineButton: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: COLORS.primary,
   },
   textButton: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   // Text styles
   primaryButtonText: {

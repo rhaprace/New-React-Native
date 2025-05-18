@@ -18,7 +18,7 @@ interface CustomMealModalProps {
   onClose: () => void;
   onChangeMealName: (text: string) => void;
   onChangeGrams: (text: string) => void;
-  onSelectMealType: (type: string) => void;
+  onSelectMealType: (type: string | null) => void;
   onAddCustomMeal: () => void;
 }
 
@@ -122,7 +122,8 @@ const CustomMealModal: React.FC<CustomMealModalProps> = ({
               color="secondary"
               style={{ marginBottom: SPACING.xs }}
             >
-              {matchingFoods.length} matching food(s) found
+              <Text weight="semibold">{matchingFoods.length}</Text> matching
+              food(s) found
             </Text>
             <ScrollView
               style={styles.searchResults}
@@ -139,8 +140,10 @@ const CustomMealModal: React.FC<CustomMealModalProps> = ({
                     {food.name}
                   </Text>
                   <Text variant="caption" color="secondary">
-                    {food.calories} cal | P: {food.protein}g | C: {food.carbs}g
-                    | F: {food.fat}g
+                    <Text weight="semibold">{food.calories}</Text> cal |{" "}
+                    <Text weight="semibold">P: {food.protein}g</Text> |{" "}
+                    <Text weight="semibold">C: {food.carbs}g</Text> |{" "}
+                    <Text weight="semibold">F: {food.fat}g</Text>
                   </Text>
                 </TouchableOpacity>
               ))}

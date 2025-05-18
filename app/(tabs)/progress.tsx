@@ -1,12 +1,19 @@
 import React, { useState } from "react";
-import { View, ScrollView, TouchableOpacity } from "react-native";
+import {
+  View,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  StyleSheet,
+} from "react-native";
 import { StatusBar } from "expo-status-bar";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useUser } from "@clerk/clerk-expo";
 import { useQuery } from "convex/react";
+import { useRouter } from "expo-router";
 import { api } from "@/convex/_generated/api";
 import { Text } from "@/components/ui";
-import { COLORS } from "@/constants/theme";
+import { COLORS, FONT, SPACING } from "@/constants/theme";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   CalorieHistoryChart,
@@ -15,10 +22,12 @@ import {
   GoalBasedWeightPrediction,
   StepCounter,
 } from "@/components/progress";
-import { styles } from "@/styles/progress.style";
+import { styles as progressStyles } from "@/styles/progress.style";
+import { useSubscriptionCheck } from "@/hooks/useSubscriptionCheck";
 
-const Progress = () => {
+const ProgressScreen = () => {
   const { user, isLoaded } = useUser();
+  const router = useRouter();
   const [selectedWeightGoal, setSelectedWeightGoal] = useState<
     "loss" | "gain" | "maintain"
   >("maintain");
@@ -30,14 +39,27 @@ const Progress = () => {
   const todayStr = today.toISOString().split("T")[0];
   const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split("T")[0];
 
-  const convexUser = useQuery(api.users.getUserByClerkId, {
+  const userData = useQuery(api.users.getUserByClerkId, {
     clerkId: user?.id || "",
   });
 
-  const userId = convexUser?._id;
-  const userProfile = convexUser?.profile;
+  const userId = userData?._id;
+  const userProfile = userData?.profile;
 
-  // Get meal history
+  const { isLoading, hasAccess } = useSubscriptionCheck();
+  if (isLoading) {
+    return (
+      <View style={progressStyles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text variant="body1" color="secondary">
+          Checking access...
+        </Text>
+      </View>
+    );
+  }
+  if (!hasAccess) {
+    return null;
+  }
   const mealHistory = useQuery(
     api.meal.getMealHistoryByDateRange,
     userId
@@ -49,23 +71,12 @@ const Progress = () => {
       : "skip"
   );
 
-  // Get weight prediction - currently not used but will be needed for future features
-  // const weightPrediction = useQuery(
-  //   api.weightPrediction.getWeightPrediction,
-  //   userId
-  //     ? {
-  //         userId,
-  //         daysToPredict: 30, // Predict for the next 30 days
-  //       }
-  //     : "skip"
-  // );
-
-  if (!isLoaded || !convexUser) {
+  if (!isLoaded || !userData) {
     return <LoadingState />;
   }
 
   return (
-    <View style={styles.container}>
+    <View style={progressStyles.container}>
       <StatusBar style="dark" />
       <ProgressHeader
         title="Progress Tracking"
@@ -74,7 +85,7 @@ const Progress = () => {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={progressStyles.scrollContent}
         nestedScrollEnabled={true}
       >
         <Animated.View entering={FadeInDown.delay(100).springify()}>
@@ -83,22 +94,22 @@ const Progress = () => {
 
         <Animated.View
           entering={FadeInDown.delay(200).springify()}
-          style={styles.chartCard}
+          style={progressStyles.chartCard}
         >
-          <View style={styles.weightGoalSelector}>
+          <View style={progressStyles.weightGoalSelector}>
             <Text
               variant="body2"
               weight="semibold"
-              style={styles.weightGoalLabel}
+              style={progressStyles.weightGoalLabel}
             >
               Weight Goal:
             </Text>
-            <View style={styles.weightGoalButtons}>
+            <View style={progressStyles.weightGoalButtons}>
               <TouchableOpacity
                 style={[
-                  styles.weightGoalButton,
+                  progressStyles.weightGoalButton,
                   selectedWeightGoal === "loss" &&
-                    styles.selectedWeightGoalButton,
+                    progressStyles.selectedWeightGoalButton,
                 ]}
                 onPress={() => setSelectedWeightGoal("loss")}
               >
@@ -113,9 +124,9 @@ const Progress = () => {
                 />
                 <Text
                   style={[
-                    styles.weightGoalButtonText,
+                    progressStyles.weightGoalButtonText,
                     selectedWeightGoal === "loss" &&
-                      styles.selectedWeightGoalButtonText,
+                      progressStyles.selectedWeightGoalButtonText,
                   ]}
                 >
                   Loss
@@ -124,9 +135,9 @@ const Progress = () => {
 
               <TouchableOpacity
                 style={[
-                  styles.weightGoalButton,
+                  progressStyles.weightGoalButton,
                   selectedWeightGoal === "maintain" &&
-                    styles.selectedWeightGoalButton,
+                    progressStyles.selectedWeightGoalButton,
                 ]}
                 onPress={() => setSelectedWeightGoal("maintain")}
               >
@@ -141,9 +152,9 @@ const Progress = () => {
                 />
                 <Text
                   style={[
-                    styles.weightGoalButtonText,
+                    progressStyles.weightGoalButtonText,
                     selectedWeightGoal === "maintain" &&
-                      styles.selectedWeightGoalButtonText,
+                      progressStyles.selectedWeightGoalButtonText,
                   ]}
                 >
                   Maintain
@@ -152,9 +163,9 @@ const Progress = () => {
 
               <TouchableOpacity
                 style={[
-                  styles.weightGoalButton,
+                  progressStyles.weightGoalButton,
                   selectedWeightGoal === "gain" &&
-                    styles.selectedWeightGoalButton,
+                    progressStyles.selectedWeightGoalButton,
                 ]}
                 onPress={() => setSelectedWeightGoal("gain")}
               >
@@ -169,9 +180,9 @@ const Progress = () => {
                 />
                 <Text
                   style={[
-                    styles.weightGoalButtonText,
+                    progressStyles.weightGoalButtonText,
                     selectedWeightGoal === "gain" &&
-                      styles.selectedWeightGoalButtonText,
+                      progressStyles.selectedWeightGoalButtonText,
                   ]}
                 >
                   Gain
@@ -191,7 +202,7 @@ const Progress = () => {
 
         <Animated.View
           entering={FadeInDown.delay(200).springify()}
-          style={styles.chartCard}
+          style={progressStyles.chartCard}
         >
           <CalorieHistoryChart
             mealHistory={mealHistory || []}
@@ -199,12 +210,24 @@ const Progress = () => {
           />
         </Animated.View>
 
-        <View style={styles.bottomPadding} />
+        <View style={progressStyles.bottomPadding} />
       </ScrollView>
-
-      {/* Weight Tracking Modal removed */}
     </View>
   );
 };
 
-export default Progress;
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+  },
+  loadingText: {
+    marginTop: SPACING.sm,
+    color: COLORS.textSecondary,
+    fontSize: FONT.size.md,
+  },
+});
+
+export default ProgressScreen;

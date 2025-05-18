@@ -31,7 +31,7 @@ export const useMealPlanner = (userId: any, user: any) => {
   const [expandedDay, setExpandedDay] = useState<string | null>("Monday");
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
-  const [mealType, setMealType] = useState("Breakfast");
+  const [mealType, setMealType] = useState<string>("Breakfast");
   const [mealName, setMealName] = useState("");
   const [grams, setGrams] = useState("");
   const [loading, setLoading] = useState(false);
@@ -84,14 +84,15 @@ export const useMealPlanner = (userId: any, user: any) => {
       return;
     }
 
-    console.log("All meals from database:", allMeals);
-
-    // Count meals by day for debugging
-    const mealCountByDay = allMeals.reduce((acc, meal) => {
-      const day = formatDay(meal.day);
-      acc[day] = (acc[day] || 0) + 1;
-      return acc;
-    }, {});
+    console.log("All meals from database:", allMeals); // Count meals by day for debugging
+    const mealCountByDay = allMeals.reduce<Record<string, number>>(
+      (acc, meal) => {
+        const day = formatDay(meal.day);
+        acc[day] = (acc[day] || 0) + 1;
+        return acc;
+      },
+      {}
+    );
     console.log("Meal count by day:", mealCountByDay);
 
     // Create a fresh base meal plan
@@ -411,103 +412,6 @@ export const useMealPlanner = (userId: any, user: any) => {
     },
     [checkUserReady, createMealMutation, logAddedMealMutation, userId, allMeals]
   );
-
-  const handleAddMeal = useCallback(
-    async (day: string, type: string) => {
-      if (!checkUserReady()) {
-        return;
-      }
-
-      try {
-        const dayItem = mealPlan.find((item: any) => item.day === day);
-        if (!dayItem) {
-          throw new Error("Day not found in meal plan");
-        }
-
-        const mealKey = type.toLowerCase();
-        const mealData = dayItem[mealKey as keyof typeof dayItem] as any;
-
-        if (!mealData) {
-          throw new Error("Meal type not found");
-        }
-
-        // If there are no meals for this day and meal type, show options to add a meal
-        if (!mealData.items || mealData.items.length === 0) {
-          Alert.alert(
-            "Add a Meal",
-            `There is no meal set for ${type} on ${day}. What would you like to do?`,
-            [
-              {
-                text: "Cancel",
-                style: "cancel",
-              },
-              {
-                text: "Add Recommended Meal",
-                onPress: () => {
-                  // Open the recommendations modal for this day and meal type
-                  handleOpenRecommendations(day, type);
-                },
-              },
-              {
-                text: "Add Custom Meal",
-                onPress: () => {
-                  // Open the custom meal modal for this day
-                  handleOpenModal(day);
-                  // Pre-select the meal type
-                  setMealType(type);
-                },
-              },
-            ]
-          );
-          return;
-        }
-
-        // If there are meals for this day and meal type, proceed with adding to today's food
-        Alert.alert(
-          "Add to Today's Food",
-          `Do you want to add ${mealData.items[0].meal} to today's food in your homepage?`,
-          [
-            {
-              text: "Cancel",
-              style: "cancel",
-            },
-            {
-              text: "Add",
-              onPress: () => {
-                // Create a meal object from the meal data
-                const meal = {
-                  name: mealData.items[0].meal,
-                  calories: mealData.items[0].calories,
-                  protein: mealData.items[0].protein,
-                  carbs: mealData.items[0].carbs,
-                  fat: mealData.items[0].fat,
-                  day: formatDay(day),
-                  mealType: mealKey,
-                };
-
-                // Use the handleAddToTodaysFood function to add the meal to today's food
-                handleAddToTodaysFood(meal);
-              },
-            },
-          ]
-        );
-      } catch (error) {
-        console.error("Error preparing meal:", error);
-        Alert.alert(
-          "Error",
-          "There was an error preparing your meal. Please try again."
-        );
-      }
-    },
-    [
-      checkUserReady,
-      mealPlan,
-      userId,
-      handleOpenModal,
-      setMealType,
-      handleAddToTodaysFood,
-    ]
-  );
   const handleAddCustomMeal = useCallback(async () => {
     if (!checkUserReady()) {
       return;
@@ -581,22 +485,21 @@ export const useMealPlanner = (userId: any, user: any) => {
 
       console.log(
         `Adding custom meal: ${mealName}, ${grams}g, for ${formattedDay}, ${normalizedMealType}`
-      );
+      ); // Add the meal with both the planning date and current date for today's food
+      const currentDate = new Date().toISOString().split("T")[0];
 
-      // For meal planning, we use the planning date to organize meals by day
+      // Add meal using custom meal mutation
       const result = await addCustomMealMutation({
         userId: userId!,
         mealName,
         mealType: normalizedMealType,
         grams: parseFloat(grams),
-        day: formattedDay, // Properly formatted day
-        date: planningDate, // Use planning date for meal planner
+        day: formattedDay,
+        date: currentDate, // Use current date to properly track today's macros
       });
 
       console.log("Added custom meal result:", result);
-
       if (result.success) {
-        // Instead of manually updating the meal plan, trigger a refresh to fetch the latest data
         setModalVisible(false);
         setMealName("");
         setGrams("");
@@ -663,6 +566,10 @@ export const useMealPlanner = (userId: any, user: any) => {
     setSelectedRecommendation(food);
   }, []);
   const handleAddRecommendation = useCallback(async () => {
+    if (!checkUserReady()) {
+      return;
+    }
+
     if (!selectedRecommendation || !selectedDay) {
       Alert.alert("Error", "Please select a food recommendation first.");
       return;
@@ -670,38 +577,38 @@ export const useMealPlanner = (userId: any, user: any) => {
 
     setLoading(true);
     try {
-      // Ensure day is properly formatted
+      // Format day and meal type consistently
       const formattedDay = formatDay(selectedDay);
-      console.log(
-        `Adding recommendation for day: ${selectedDay} -> formatted as: ${formattedDay}`
-      );
+      const normalizedMealType = mealType.toLowerCase().trim();
+      const displayMealType =
+        normalizedMealType.charAt(0).toUpperCase() +
+        normalizedMealType.slice(1);
 
-      // Ensure meal type is properly formatted
-      const formattedMealType =
-        mealType.charAt(0).toUpperCase() + mealType.slice(1).toLowerCase();
-      const mealKey = formattedMealType.toLowerCase();
-      console.log(
-        `Meal type: ${mealType} -> formatted as: ${formattedMealType}, key: ${mealKey}`
-      );
+      // Check for duplicates using consistent normalization
+      const existingMeals = allMeals?.filter((existingMeal) => {
+        const existingMealType = existingMeal.mealType.toLowerCase().trim();
+        const nameMatches =
+          existingMeal.name.toLowerCase().trim() ===
+          selectedRecommendation.name.toLowerCase().trim();
+        const dayMatches = formatDay(existingMeal.day) === formattedDay;
+        const typeMatches = existingMealType === normalizedMealType;
 
-      console.log(
-        `Adding recommendation: ${selectedRecommendation.name} for ${formattedDay}, ${mealKey}`
-      );
+        return dayMatches && nameMatches && typeMatches;
+      });
 
-      // Use the current date for today's entries, but we need to use a consistent date for all days
-      // This ensures that meals are properly associated with their respective days
+      if (existingMeals && existingMeals.length > 0) {
+        Alert.alert(
+          "Already Added",
+          `${selectedRecommendation.name} is already added to ${displayMealType} for ${formattedDay}`
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Use current date for macro tracking
       const currentDate = new Date().toISOString().split("T")[0];
 
-      // For meal planning, we'll use a fixed date format that's consistent for all days
-      // This ensures that all meals for a specific day (e.g., Monday) are grouped together
-      // regardless of when they were added
-      const planningDate = `2023-01-${getDayNumber(formattedDay)}`;
-      console.log(
-        `Using planning date: ${planningDate} for day: ${formattedDay}`
-      );
-
-      // First, add the meal to the database using createMeal mutation
-      // For meal planning, we use the planning date to organize meals by day
+      // Add the meal to the database
       const mealResult = await createMealMutation({
         userId: userId!,
         name: selectedRecommendation.name,
@@ -709,53 +616,31 @@ export const useMealPlanner = (userId: any, user: any) => {
         protein: selectedRecommendation.protein,
         carbs: selectedRecommendation.carbs,
         fat: selectedRecommendation.fat,
-        date: planningDate, // Use planning date for meal planner
-        day: formattedDay, // Properly formatted day
-        mealType: mealKey,
+        date: currentDate,
+        day: formattedDay,
+        mealType: normalizedMealType,
       });
 
       console.log("Added meal result:", mealResult);
 
-      // Then log the added meal
-      const logResult = await logAddedMealMutation({
+      // Log the meal addition
+      await logAddedMealMutation({
         userId: userId!,
         mealName: selectedRecommendation.name,
-        mealType: mealKey,
-        day: formattedDay, // Properly formatted day
-        date: planningDate, // Use planning date for meal planner
+        mealType: normalizedMealType,
+        day: formattedDay,
+        date: currentDate,
       });
-
-      console.log("Logged meal result:", logResult);
-
-      // Also call the saveRumbleFoodMutation for backward compatibility
-      const result = await saveRumbleFoodMutation({
-        userId: userId!,
-        foodId: selectedRecommendation.id,
-        name: selectedRecommendation.name,
-        calories: selectedRecommendation.calories,
-        protein: selectedRecommendation.protein,
-        carbs: selectedRecommendation.carbs,
-        fat: selectedRecommendation.fat,
-        category: selectedRecommendation.category,
-        day: formattedDay, // Ensure consistent day formatting
-        date: planningDate, // Use planning date for meal planner
-        mealType: mealKey,
-      });
-
-      console.log("Saved meal recommendation result:", result);
 
       setRecommendModalVisible(false);
       setSelectedRecommendation(null);
 
       Alert.alert(
         "Success",
-        `Added ${selectedRecommendation.name} to ${formattedMealType} for ${formattedDay} (${selectedRecommendation.calories} calories)`
+        `Added ${selectedRecommendation.name} to ${displayMealType} for ${formattedDay} (${selectedRecommendation.calories} calories)`
       );
 
-      // Trigger a refresh to update the meal plan with the latest data from the database
-      console.log(
-        "Triggering refresh to update meal plan after adding recommendation"
-      );
+      // Trigger refresh to update the displayed meal plan
       setRefreshTrigger((prev) => prev + 1);
     } catch (error) {
       console.error("Error adding recommendation:", error);
@@ -767,10 +652,11 @@ export const useMealPlanner = (userId: any, user: any) => {
       setLoading(false);
     }
   }, [
-    mealType,
-    saveRumbleFoodMutation,
+    allMeals,
+    checkUserReady,
     createMealMutation,
     logAddedMealMutation,
+    mealType,
     selectedDay,
     selectedRecommendation,
     userId,
@@ -817,7 +703,6 @@ export const useMealPlanner = (userId: any, user: any) => {
     handleMaintainWeight,
     toggleDayExpansion,
     handleOpenModal,
-    handleAddMeal,
     handleAddCustomMeal,
     handleOpenRecommendations,
     handleCategoryFilter,
@@ -826,7 +711,10 @@ export const useMealPlanner = (userId: any, user: any) => {
     handleAddToTodaysFood, // Add the new function
     handleDeleteMeal,
     setModalVisible,
-    setMealType,
+    setMealType: useCallback((type: string | null) => {
+      // Convert null to empty string to maintain type safety in state
+      setMealType(type || "");
+    }, []),
     setMealName,
     setGrams,
     setRecommendModalVisible,

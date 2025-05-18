@@ -9,7 +9,8 @@ import {
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { COLORS } from "@/constants/theme";
-import { weeklyWorkouts } from "@/constants/workoutData"; // Import workout data
+import { weeklyWorkouts } from "@/constants/workoutData";
+import { ExerciseVideo } from "@/components/workout";
 
 type Exercise = {
   name: string;
@@ -17,11 +18,12 @@ type Exercise = {
   duration: number;
   caloriesBurned: number;
   instructions?: string;
+  videoUrl?: string;
 };
 
 const DayWorkout = () => {
   const { day } = useLocalSearchParams();
-  const [timer, setTimer] = useState<number | null>(null);
+  const [seconds, setSeconds] = useState<number>(0);
   const [isRunning, setIsRunning] = useState(false);
   const [hasAlerted, setHasAlerted] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(
@@ -31,7 +33,7 @@ const DayWorkout = () => {
 
   const handleStartTimer = (duration: number) => {
     if (duration > 0) {
-      setTimer(duration * 60);
+      setSeconds(duration * 60);
       setIsRunning(true);
       setHasAlerted(false);
     } else {
@@ -45,22 +47,32 @@ const DayWorkout = () => {
   };
 
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
+    let intervalId: ReturnType<typeof setInterval>;
 
-    if (isRunning && timer !== null && timer > 0) {
-      interval = setInterval(() => {
-        setTimer((prev) => (prev !== null ? prev - 1 : null));
+    if (isRunning && seconds > 0) {
+      intervalId = setInterval(() => {
+        setSeconds((prev) => {
+          const newValue = prev - 1;
+          if (newValue <= 0) {
+            clearInterval(intervalId);
+            setIsRunning(false);
+            if (!hasAlerted) {
+              setHasAlerted(true);
+              alert("Time's up!");
+            }
+            return 0;
+          }
+          return newValue;
+        });
       }, 1000);
-    } else if (isRunning && timer === 0 && !hasAlerted) {
-      setIsRunning(false);
-      setHasAlerted(true);
-      alert("Time's up!");
     }
 
     return () => {
-      if (interval) clearInterval(interval);
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
     };
-  }, [isRunning, timer, hasAlerted]);
+  }, [isRunning, seconds, hasAlerted]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -69,8 +81,6 @@ const DayWorkout = () => {
   };
 
   const dayString = (day as string)?.toLowerCase() || "monday";
-
-  // Get exercises for the selected day
   const selectedDayWorkout = weeklyWorkouts.find(
     (workout) => workout.day.toLowerCase() === dayString
   );
@@ -106,15 +116,13 @@ const DayWorkout = () => {
           </View>
         )}
       />
-      {isRunning && timer !== null && (
+      {isRunning && seconds > 0 && (
         <View style={styles.timerContainer}>
           <Text style={styles.timerText}>
-            Time Remaining: {formatTime(timer)}
+            Time Remaining: {formatTime(seconds)}
           </Text>
         </View>
       )}
-
-      {/* Modal for Exercise Instructions */}
       <Modal
         visible={modalVisible}
         animationType="slide"
@@ -127,9 +135,7 @@ const DayWorkout = () => {
             <Text style={styles.modalInstructions}>
               {selectedExercise?.instructions || "No instructions available."}
             </Text>
-            <View style={styles.videoPlaceholder}>
-              <Text style={styles.videoPlaceholderText}>Video Placeholder</Text>
-            </View>
+            <ExerciseVideo videoUrl={selectedExercise?.videoUrl} />
             <TouchableOpacity
               style={styles.closeButton}
               onPress={() => setModalVisible(false)}

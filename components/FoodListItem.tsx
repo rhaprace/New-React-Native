@@ -25,7 +25,7 @@ type Meal = {
 type FoodListItemProps = {
   meal: Meal;
   mealType: string;
-  onAddMeal: (meal: Meal) => void;
+  onAddMeal?: (meal: Meal) => void;
   onRecommend?: () => void;
   onDeleteMeal?: (mealId: any) => void; // Add delete handler
   onAddToTodaysFood?: (meal: any) => void; // Add function to add meal to today's food
@@ -72,7 +72,6 @@ export default function FoodListItem({
           {mealType}
         </Text>
       </View>
-
       <Card style={styles.container} elevation="sm">
         <View style={styles.mealInfoContainer}>
           <View style={styles.mealTitleContainer}>
@@ -97,65 +96,57 @@ export default function FoodListItem({
                   padding: SPACING.sm,
                 }}
               >
-                No meals added yet. Click 'Recommended' or '+' to add meals.
+                <Text>No meals planned yet. Click </Text>
+                <Text weight="semibold">Recommended</Text>
+                <Text> to add meals or used </Text>
+                <Text weight="semibold">Add a Custom Meal</Text>
+                <Text>.</Text>
               </Text>
             )}
           </View>
 
           <View style={styles.nutritionContainer}>
             <View style={styles.nutritionItem}>
-              <Text
-                variant="body2"
-                weight="bold"
-                color="primary"
-                style={{ marginRight: 2 }}
-              >
-                {meal.calories}
-              </Text>
-              <Text variant="caption" color="secondary">
-                cal
+              <Text variant="body2" color="primary">
+                <Text weight="bold" style={{ marginRight: 2 }}>
+                  {meal.calories}
+                </Text>
+                <Text variant="caption" color="secondary">
+                  cal
+                </Text>
               </Text>
             </View>
 
             <View style={styles.nutritionItem}>
-              <Text
-                variant="body2"
-                weight="bold"
-                color="primary"
-                style={{ marginRight: 2 }}
-              >
-                {meal.protein}g
-              </Text>
-              <Text variant="caption" color="secondary">
-                protein
+              <Text variant="body2" color="primary">
+                <Text weight="bold" style={{ marginRight: 2 }}>
+                  {meal.protein}g
+                </Text>
+                <Text variant="caption" color="secondary">
+                  protein
+                </Text>
               </Text>
             </View>
 
             <View style={styles.nutritionItem}>
-              <Text
-                variant="body2"
-                weight="bold"
-                color="primary"
-                style={{ marginRight: 2 }}
-              >
-                {meal.carbs}g
-              </Text>
-              <Text variant="caption" color="secondary">
-                carbs
+              <Text variant="body2" color="primary">
+                <Text weight="bold" style={{ marginRight: 2 }}>
+                  {meal.carbs}g
+                </Text>
+                <Text variant="caption" color="secondary">
+                  carbs
+                </Text>
               </Text>
             </View>
 
             <View style={styles.nutritionItem}>
-              <Text
-                variant="body2"
-                weight="bold"
-                color="primary"
-                style={{ marginRight: 2 }}
-              >
-                {meal.fat}g
-              </Text>
-              <Text variant="caption" color="secondary">
-                fat
+              <Text variant="body2" color="primary">
+                <Text weight="bold" style={{ marginRight: 2 }}>
+                  {meal.fat}g
+                </Text>
+                <Text variant="caption" color="secondary">
+                  fat
+                </Text>
               </Text>
             </View>
           </View>
@@ -173,50 +164,7 @@ export default function FoodListItem({
               </Button>
             )}
           </View>
-
           <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={() => {
-                // Check if we have meal items and onAddToTodaysFood function
-                if (onAddToTodaysFood && meal.items && meal.items.length > 0) {
-                  // Create a meal object to add to today's food
-                  const mealToAdd = {
-                    name: meal.items[0].meal,
-                    calories: meal.items[0].calories,
-                    protein: meal.items[0].protein,
-                    carbs: meal.items[0].carbs,
-                    fat: meal.items[0].fat,
-                    day: day || "",
-                    mealType: mealType.toLowerCase(),
-                  };
-
-                  // Show a confirmation alert before adding
-                  Alert.alert(
-                    "Add to Today's Food",
-                    `Add ${mealToAdd.name} to today's food?`,
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "Add",
-                        onPress: () => {
-                          // Only add to today's food, don't call onAddMeal
-                          // This will add to today's food without affecting the current view
-                          onAddToTodaysFood(mealToAdd);
-                        },
-                      },
-                    ]
-                  );
-                } else if (meal.items && meal.items.length === 0) {
-                  // If there are no meal items, show meal options
-                  onAddMeal(meal);
-                }
-                // Do nothing if there's no onAddToTodaysFood and we already have meal items
-              }}
-            >
-              <AntDesign name="plus" size={16} color={COLORS.textOnPrimary} />
-            </TouchableOpacity>
-
             {onDeleteMeal &&
               meal.items &&
               meal.items.length > 0 &&

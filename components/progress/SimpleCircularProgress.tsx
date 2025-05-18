@@ -83,8 +83,19 @@ const SimpleCircularProgress: React.FC<SimpleCircularProgressProps> = ({
       >
         {/* Value Text */}
         <Text variant="h4" weight="bold" style={{ color: progressValueColor }}>
-          {Math.round(percentage)}
-          {valueSuffix ? <Text>{valueSuffix}</Text> : null}
+          {" "}
+          <Text
+            variant="h3"
+            weight="bold"
+            style={{ color: progressValueColor }}
+          >
+            {Math.round(percentage)}
+            {valueSuffix ? (
+              <Text variant="h3" weight="bold">
+                {valueSuffix}
+              </Text>
+            ) : null}
+          </Text>
         </Text>
 
         {/* Title Text */}

@@ -1,10 +1,16 @@
-import { useEffect } from "react";
-import { View, Text, Image, TouchableOpacity } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
 import { FontAwesome5, Ionicons } from "@expo/vector-icons";
 import { useUser } from "@clerk/clerk-expo";
 import { useSSO } from "@clerk/clerk-expo";
-import { useRouter } from "expo-router";
 import { useMutation } from "convex/react";
+import { useRouter } from "expo-router";
 import { api } from "@/convex/_generated/api";
 import { COLORS } from "@/constants/theme";
 import { styles } from "@/styles/auth.styles";
@@ -14,84 +20,50 @@ export default function Login() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const createUser = useMutation(api.users.createUser);
-  const checkSubscriptionStatus = useMutation(
-    api.subscription.checkSubscriptionStatus
-  );
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleGoogleSignIn = async () => {
     try {
+      setIsLoggingIn(true);
       const { createdSessionId, setActive } = await startSSOFlow({
         strategy: "oauth_google",
       });
 
       if (setActive && createdSessionId) {
         await setActive({ session: createdSessionId });
+        setTimeout(() => {
+          console.log("Login successful, manually navigating to verify-email");
+          router.replace("/(auth)/verify-email");
+        }, 1000);
       }
     } catch (error) {
       console.error("Login error:", error);
+      setIsLoggingIn(false);
     }
   };
 
   useEffect(() => {
-    const handleUserAuth = async () => {
-      if (!isLoaded || !user) return;
-
+    if (!isLoaded || !user) return;
+    const currentUser = user;
+    async function initializeUser() {
       try {
-        // This will either create a new user or return an existing user
-        const newOrExistingUser = await createUser({
-          username: user.username || "Unknown",
-          fullname: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
-          email: user.primaryEmailAddress?.emailAddress || "Unknown",
-          image: user.imageUrl || undefined,
-          clerkId: user.id,
+        console.log("Creating/updating user in Convex:", currentUser.id);
+        await createUser({
+          username: currentUser.username ?? "Unknown",
+          fullname:
+            `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim(),
+          email: currentUser.primaryEmailAddress?.emailAddress ?? "Unknown",
+          image: currentUser.imageUrl,
+          clerkId: currentUser.id,
         });
-
-        // If user creation failed (shouldn't happen based on the code)
-        if (!newOrExistingUser) {
-          router.replace("/subscription/plans");
-          return;
-        }
-
-        // Check if this is a new user (hasSeenSubscriptionPrompt will be false for new users)
-        const isNewUser = newOrExistingUser.hasSeenSubscriptionPrompt === false;
-
-        // Check subscription status for existing users
-        const { status } = await checkSubscriptionStatus();
-
-        // Logic for handling different user states
-        if (isNewUser) {
-          // New user - show subscription screen
-          console.log("New user - redirecting to subscription screen");
-          router.replace("/subscription/plans");
-        } else if (status === "active" || status === "free_trial") {
-          // Existing user with active subscription - go to profile
-          console.log(
-            "Existing user with active subscription - redirecting to profile"
-          );
-          router.replace("/(tabs)");
-        } else if (
-          newOrExistingUser.subscription === "inactive" ||
-          newOrExistingUser.subscription === "expired"
-        ) {
-          // Existing user with inactive/expired subscription - show subscription screen
-          console.log(
-            "Existing user with inactive/expired subscription - redirecting to subscription screen"
-          );
-          router.replace("/subscription/plans");
-        } else {
-          // Fallback - show subscription screen
-          console.log(
-            "User with unknown status - redirecting to subscription screen"
-          );
-          router.replace("/subscription/plans");
-        }
+        console.log("User created/updated successfully");
       } catch (error) {
-        console.error("Error handling user auth:", error);
+        console.error("Error during user initialization:", error);
       }
-    };
+    }
 
-    handleUserAuth();
-  }, [user, isLoaded]);
+    initializeUser();
+  }, [user, isLoaded, createUser]);
 
   return (
     <View style={styles.container}>
@@ -102,6 +74,7 @@ export default function Login() {
         <Text style={styles.appName}>atletech</Text>
         <Text style={styles.tagline}>don't miss anything</Text>
       </View>
+
       <View style={styles.illustrationContainer}>
         <Image
           source={require("../../assets/images/loginImage.png")}
@@ -111,16 +84,24 @@ export default function Login() {
       </View>
 
       <View style={styles.loginSection}>
-        <TouchableOpacity
-          style={styles.googleButton}
-          onPress={handleGoogleSignIn}
-          activeOpacity={0.9}
-        >
-          <View style={styles.googleContainer}>
-            <Ionicons name="logo-google" size={20} color={COLORS.surface} />
+        {isLoggingIn ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.loadingText}>Logging in...</Text>
           </View>
-          <Text style={styles.googleButtonText}>Continue with Google</Text>
-        </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.googleButton}
+            onPress={handleGoogleSignIn}
+            activeOpacity={0.9}
+            disabled={isLoggingIn}
+          >
+            <View style={styles.googleContainer}>
+              <Ionicons name="logo-google" size={20} color={COLORS.gray} />
+            </View>
+            <Text style={styles.googleButtonText}>Continue with Google</Text>
+          </TouchableOpacity>
+        )}
         <Text style={styles.termsText}>
           By continuing, you agree to our Terms and Privacy Policy
         </Text>

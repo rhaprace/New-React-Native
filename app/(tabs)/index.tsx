@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { View, Image, TouchableOpacity, ScrollView } from "react-native";
+import {
+  View,
+  Image,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  StyleSheet,
+} from "react-native";
 import { useUser } from "@clerk/clerk-expo";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -7,8 +14,8 @@ import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Animated, { FadeInDown } from "react-native-reanimated";
-import { COLORS } from "@/constants/theme";
-import { styles } from "@/styles/home.style";
+import { COLORS, FONT, SPACING } from "@/constants/theme";
+import { styles as homeStyles } from "@/styles/home.style";
 import { Text, Card } from "@/components/ui";
 import {
   CalorieTracker,
@@ -17,6 +24,7 @@ import {
   CalorieGoalTracker,
 } from "@/components/home";
 import { WorkoutsList, WorkoutResetTracker } from "@/components/workout";
+import { useSubscriptionCheck } from "@/hooks/useSubscriptionCheck";
 
 interface Meal {
   _id: any;
@@ -35,17 +43,12 @@ const Home = () => {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const [showResetMessage, setShowResetMessage] = useState(false);
-
-  // Get user data
+  const { isLoading, hasAccess } = useSubscriptionCheck();
+  const today = new Date().toISOString().split("T")[0];
   const convexUser = useQuery(api.users.getUserByClerkId, {
     clerkId: user?.id ?? "",
   });
-
-  const profile = convexUser?.profile;
-  const dailyCalories = profile?.dailyCalories || 2000;
-  const today = new Date().toISOString().split("T")[0];
-
-  // Get today's meals
+  const dailyCalories = convexUser?.profile?.dailyCalories || 2000;
   const todaysMealsResult = useQuery(
     api.meal.getMealsByDate,
     convexUser?._id
@@ -56,12 +59,7 @@ const Home = () => {
       : "skip"
   );
 
-  const todaysMeals =
-    convexUser?._id && todaysMealsResult !== undefined
-      ? (todaysMealsResult as Meal[] | undefined)
-      : [];
-
-  // Calculate nutrition totals
+  const todaysMeals = todaysMealsResult ?? [];
   const totalCalories =
     todaysMeals?.reduce(
       (sum: number, meal: Meal) => sum + (meal.calories || 0),
@@ -85,25 +83,20 @@ const Home = () => {
       (sum: number, meal: Meal) => sum + (meal.fat || 0),
       0
     ) || 0;
-
-  // Calculate calorie stats
   const caloriesRemaining = dailyCalories - totalCalories;
   const calorieProgress = Math.min((totalCalories / dailyCalories) * 100, 100);
   const isCalorieGoalReached = totalCalories >= dailyCalories;
-  const isCalorieGoalExceeded = totalCalories > dailyCalories * 1.1; // Exceeded by 10%
-
-  // Loading state
-  if (!isLoaded || !convexUser) {
+  const isCalorieGoalExceeded = totalCalories > dailyCalories * 1.1;
+  if (!isLoaded || isLoading || !convexUser) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={homeStyles.loadingContainer}>
         <StatusBar style="dark" />
-        <Animated.View entering={FadeInDown} style={styles.loadingIndicator}>
-          <MaterialCommunityIcons
-            name="loading"
-            size={32}
-            color={COLORS.primary}
-          />
-          <Text variant="body1" color="primary" style={{ marginTop: 12 }}>
+        <Animated.View
+          entering={FadeInDown}
+          style={homeStyles.loadingIndicator}
+        >
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text variant="body1" color="secondary" style={{ marginTop: 12 }}>
             Loading your dashboard...
           </Text>
         </Animated.View>
@@ -112,38 +105,38 @@ const Home = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={homeStyles.container}>
       <StatusBar style="light" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
+      <View style={homeStyles.header}>
+        <View style={homeStyles.headerContent}>
           <View>
-            <Text variant="body1" color="onPrimary" style={styles.welcomeText}>
+            <Text
+              variant="body1"
+              color="onPrimary"
+              style={homeStyles.welcomeText}
+            >
               Welcome back,
             </Text>
             <Text
               variant="h4"
               weight="bold"
               color="onPrimary"
-              style={styles.nameText}
+              style={homeStyles.nameText}
             >
               {convexUser.fullname || user?.firstName || "Athlete"}
             </Text>
           </View>
           <TouchableOpacity
-            style={styles.profileButton}
+            style={homeStyles.profileButton}
             onPress={() => router.push("/profile")}
           >
             <Image
               source={{ uri: convexUser.image || user?.imageUrl }}
-              style={styles.profileImage}
+              style={homeStyles.profileImage}
             />
           </TouchableOpacity>
         </View>
       </View>
-
-      {/* Calorie Goal Tracker (invisible component for logic) */}
       {convexUser._id && (
         <>
           <CalorieGoalTracker
@@ -155,21 +148,17 @@ const Home = () => {
             dailyCalories={dailyCalories}
             setShowResetMessage={setShowResetMessage}
           />
-
-          {/* Workout Reset Tracker (invisible component for workout reset logic) */}
           <WorkoutResetTracker userId={convexUser._id} today={today} />
         </>
       )}
 
       <ScrollView
-        style={styles.scrollView}
+        style={homeStyles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={homeStyles.scrollContent}
       >
-        {/* Calories Card */}
         <Animated.View entering={FadeInDown}>
-          <Card style={styles.calorieCard}>
-            {/* Calorie Tracker Component */}
+          <Card style={homeStyles.calorieCard}>
             <CalorieTracker
               dailyCalories={dailyCalories}
               totalCalories={totalCalories}
@@ -179,8 +168,6 @@ const Home = () => {
               isCalorieGoalExceeded={isCalorieGoalExceeded}
               showResetMessage={showResetMessage}
             />
-
-            {/* Macros Display Component */}
             <MacroDisplay
               totalProtein={totalProtein}
               totalCarbs={totalCarbs}
@@ -188,17 +175,13 @@ const Home = () => {
             />
           </Card>
         </Animated.View>
-
-        {/* Today's Food Section */}
         <Animated.View entering={FadeInDown}>
-          <Card style={styles.sectionContainer}>
+          <Card style={homeStyles.sectionContainer}>
             <MealsList todaysMeals={todaysMeals} />
           </Card>
         </Animated.View>
-
-        {/* Recent Workouts Section */}
         <Animated.View entering={FadeInDown}>
-          <Card style={styles.sectionContainer}>
+          <Card style={homeStyles.sectionContainer}>
             <WorkoutsList userId={convexUser?._id} />
           </Card>
         </Animated.View>
@@ -206,5 +189,19 @@ const Home = () => {
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+  },
+  loadingText: {
+    marginTop: SPACING.sm,
+    color: COLORS.textSecondary,
+    fontSize: FONT.size.md,
+  },
+});
 
 export default Home;

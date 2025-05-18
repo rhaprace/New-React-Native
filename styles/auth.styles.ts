@@ -1,10 +1,10 @@
-import { COLORS, RADIUS, SHADOW, FONT, SPACING } from "@/constants/theme";
+import { COLORS, RADIUS, SHADOW } from "@/constants/theme";
 import { StyleSheet, Dimensions } from "react-native";
 
-const {width, height} = Dimensions.get("window")
+const { width, height } = Dimensions.get("window");
 
 export const styles = StyleSheet.create({
-  container:{
+  container: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
@@ -12,7 +12,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: height * 0.12,
   },
-  logoContainer:{
+  logoContainer: {
     width: 60,
     height: 60,
     borderRadius: 18,
@@ -50,7 +50,7 @@ export const styles = StyleSheet.create({
     paddingBottom: 40,
     alignItems: "center",
   },
-  googleButton:{
+  googleButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -65,16 +65,16 @@ export const styles = StyleSheet.create({
     borderColor: COLORS.border,
     ...SHADOW.md,
   },
-  googleContainer:{
+  googleContainer: {
     width: 24,
     height: 24,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
   },
-  googleButtonText:{
+  googleButtonText: {
     fontSize: 16,
-    fontWeight:"600",
+    fontWeight: "600",
     color: COLORS.textPrimary,
   },
   termsText: {
@@ -104,6 +104,35 @@ export const styles = StyleSheet.create({
   signOutText: {
     fontSize: 14,
     color: COLORS.textSecondary,
+    fontWeight: "500",
+  },
+  input: {
+    width: "100%",
+    height: 50,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: 16,
+    fontSize: 24,
+    color: COLORS.textPrimary,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 16,
+  },
+  logo: {
+    fontSize: 32,
+  },
+  loadingContainer: {
+    width: "100%",
+    maxWidth: 300,
+    height: 56,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  loadingText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: COLORS.primary,
     fontWeight: "500",
   },
 });

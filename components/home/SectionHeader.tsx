@@ -32,7 +32,9 @@ const SectionHeader: React.FC<SectionHeaderProps> = ({
         style={styles.addButton}
         onPress={onButtonPress}
       >
-        {buttonText}
+        <Text variant="button" color="primary">
+          {buttonText}
+        </Text>
       </Button>
     </View>
   );

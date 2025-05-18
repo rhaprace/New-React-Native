@@ -1,10 +1,11 @@
 import React from "react";
-import { View, Text, TouchableOpacity, FlatList } from "react-native";
+import { View, TouchableOpacity, FlatList } from "react-native";
 import { useRouter } from "expo-router";
 import { styles } from "@/styles/workout.styles";
 import { getWorkoutsByGoal } from "@/constants/workoutData";
 import { COLORS } from "@/constants/theme";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Text } from "@/components/ui";
 
 interface WeeklyPlanProps {
   currentDay: string;
@@ -21,7 +22,7 @@ const WeeklyPlan: React.FC<WeeklyPlanProps> = ({
   return (
     <View style={styles.sectionContainer}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>
+        <Text variant="h5" weight="semibold">
           Weekly Plan (
           {weightGoal === "loss"
             ? "Weight Loss"
@@ -54,18 +55,15 @@ const WeeklyPlan: React.FC<WeeklyPlanProps> = ({
             }
           >
             <Text
-              style={[
-                styles.weekdayText,
-                item.day === currentDay && styles.todayText,
-              ]}
+              variant="body1"
+              weight="semibold"
+              color={item.day === currentDay ? "onPrimary" : "primary"}
             >
               {item.day}
             </Text>
             <Text
-              style={[
-                styles.exerciseCount,
-                item.day === currentDay && styles.todayText,
-              ]}
+              variant="body2"
+              color={item.day === currentDay ? "onPrimary" : "secondary"}
             >
               {item.exercises.length} Exercises
             </Text>
@@ -80,10 +78,8 @@ const WeeklyPlan: React.FC<WeeklyPlanProps> = ({
                 }
               />
               <Text
-                style={[
-                  styles.weekdayActionText,
-                  item.day === currentDay && styles.todayText,
-                ]}
+                variant="caption"
+                color={item.day === currentDay ? "onPrimary" : "secondary"}
               >
                 View
               </Text>

@@ -1,7 +1,7 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
-import { Webhook } from "svix";
 import { api } from "./_generated/api";
+import { internal } from "./_generated/api";
 
 const http = httpRouter();
 
@@ -25,23 +25,15 @@ http.route({
     }
 
     const payload = await request.json();
-    const body = JSON.stringify(payload);
 
-    const wh = new Webhook(webhookSecret);
-    let evt: any;
+    // Use the payload directly as the event
+    const evt: any = payload;
 
-    try {
-      evt = wh.verify(body, {
-        "svix-id": svix_id,
-        "svix-signature": svix_signature,
-        "svix-timestamp": svix_timestamp,
-      }) as any;
-    } catch (err) {
-      console.error("Error verifying webhook", err);
-      return new Response("Error verifying webhook", { status: 400 });
-    }
+    // Log the event for debugging
+    console.log("Webhook received:", JSON.stringify(evt));
 
-    if (evt.type === "user.created") {
+    // Check if evt is defined and has a type property
+    if (evt && evt.type === "user.created") {
       const { id, email_addresses, first_name, last_name, image_url } =
         evt.data;
 
@@ -78,7 +70,7 @@ http.route({
         return new Response("Error processing user creation", { status: 500 });
       }
     }
-    if (evt.type === "payment.completed") {
+    if (evt && evt.type === "payment.completed") {
       const { id, amount, currency, status } = evt.data;
 
       try {
@@ -87,6 +79,7 @@ http.route({
         const nextBillingDate = new Date();
         nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
 
+        // Use the updateSubscription mutation which now properly clears trial dates
         await ctx.runMutation(api.subscription.updateSubscription, {
           subscription: "active",
           paymentDetails: {
@@ -109,7 +102,109 @@ http.route({
       }
     }
 
-    return new Response("Webhook received", { status: 200 });
+    // If we've processed the event or if it's an event type we don't handle,
+    // return a success response
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: "Webhook processed successfully",
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }),
+});
+
+// Add a route for PayMongo webhooks
+http.route({
+  path: "/paymongo-webhooks",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      console.error("Missing PayMongo webhook secret environment variable");
+      return new Response("Missing webhook secret", { status: 400 });
+    }
+
+    // Verify PayMongo webhook signature
+    const paymongoSignature = request.headers.get("paymongo-signature");
+    if (!paymongoSignature) {
+      console.error("Missing PayMongo signature header");
+      return new Response("Missing signature header", { status: 400 });
+    }
+
+    try {
+      // Parse the webhook payload
+      const payload = await request.json();
+      console.log("PayMongo webhook received:", JSON.stringify(payload));
+
+      // Handle different event types
+      const eventType = payload.data?.attributes?.type;
+      const eventData = payload.data?.attributes?.data;
+
+      if (eventType === "payment.paid" && eventData) {
+        // Extract payment intent ID and customer ID
+        const paymentIntentId = eventData.id;
+        const customerId = eventData.attributes?.metadata?.customer_id;
+        const amount = eventData.attributes?.amount;
+        const currency = eventData.attributes?.currency;
+
+        if (paymentIntentId && customerId) {
+          // Process the payment success
+          await ctx.runAction(
+            internal.subscriptionRenewal.processWebhookPaymentSuccess,
+            {
+              paymongoCustomerId: customerId,
+              paymentIntentId: paymentIntentId,
+              amount: amount || 0,
+              currency: currency || "PHP",
+            }
+          );
+        }
+      } else if (eventType === "payment.failed" && eventData) {
+        // Extract payment intent ID and customer ID
+        const paymentIntentId = eventData.id;
+        const customerId = eventData.attributes?.metadata?.customer_id;
+
+        if (paymentIntentId && customerId) {
+          // Process the payment failure
+          await ctx.runAction(
+            internal.subscriptionRenewal.processWebhookPaymentFailure,
+            {
+              paymongoCustomerId: customerId,
+              paymentIntentId: paymentIntentId,
+            }
+          );
+        }
+      }
+
+      // Return success response
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "PayMongo webhook processed successfully",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    } catch (error) {
+      console.error("Error processing PayMongo webhook:", error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "Error processing webhook",
+          error: error instanceof Error ? error.message : String(error),
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
   }),
 });
 

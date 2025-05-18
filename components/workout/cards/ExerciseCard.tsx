@@ -1,7 +1,8 @@
 import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, TouchableOpacity } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS } from "@/constants/theme";
+import { Text } from "@/components/ui";
 import { styles } from "@/styles/[day].style";
 
 export type Exercise = {
@@ -30,9 +31,14 @@ const ExerciseCard = ({
 }: ExerciseCardProps) => (
   <View style={styles.exerciseCard}>
     <View style={styles.exerciseHeader}>
-      <Text style={styles.exerciseName}>{exercise.name}</Text>
+      {" "}
+      <Text variant="h5" weight="semibold">
+        {exercise.name}
+      </Text>
       <View style={styles.exerciseTypeTag}>
-        <Text style={styles.exerciseTypeText}>{exercise.type}</Text>
+        <Text variant="caption" color="secondary">
+          {exercise.type}
+        </Text>
       </View>
     </View>
 
@@ -42,12 +48,14 @@ const ExerciseCard = ({
           name="clock-outline"
           size={18}
           color={COLORS.primary}
-        />
-        <Text style={styles.detailText}>{exercise.duration} mins</Text>
+        />{" "}
+        <Text variant="body2" color="secondary">
+          {exercise.duration} mins
+        </Text>
       </View>
       <View style={styles.detailItem}>
         <MaterialCommunityIcons name="fire" size={18} color={COLORS.error} />
-        <Text style={styles.detailText}>
+        <Text variant="body2" color="secondary">
           {exercise.caloriesBurned} calories
         </Text>
       </View>
@@ -61,8 +69,10 @@ const ExerciseCard = ({
           name="play"
           size={18}
           color={COLORS.textOnPrimary}
-        />
-        <Text style={styles.startButtonText}>Start</Text>
+        />{" "}
+        <Text variant="button" color="onPrimary">
+          Start
+        </Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.viewButton}
@@ -73,7 +83,9 @@ const ExerciseCard = ({
           size={18}
           color={COLORS.textOnSecondary}
         />
-        <Text style={styles.viewButtonText}>View</Text>
+        <Text variant="button" color="onSecondary">
+          View
+        </Text>
       </TouchableOpacity>
     </View>
   </View>

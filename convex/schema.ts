@@ -33,6 +33,16 @@ export default defineSchema({
     trialStartDate: v.optional(v.string()),
     trialEndDate: v.optional(v.string()),
     trialUsed: v.optional(v.boolean()),
+    // Email verification
+    isEmailVerified: v.optional(v.boolean()),
+    emailOTP: v.optional(v.string()),
+    otpExpiryTime: v.optional(v.number()),
+    // Daily macro tracking
+    dailyCalories: v.optional(v.number()),
+    dailyProtein: v.optional(v.number()),
+    dailyCarbs: v.optional(v.number()),
+    dailyFat: v.optional(v.number()),
+    lastMacroResetDate: v.optional(v.string()),
     paymentDetails: v.optional(
       v.object({
         paymentIntentId: v.optional(v.string()),
@@ -44,6 +54,9 @@ export default defineSchema({
         lastPaymentDate: v.string(),
         nextBillingDate: v.string(),
         subscriptionEndDate: v.string(),
+        // PayMongo integration fields for recurring payments
+        paymongoCustomerId: v.optional(v.string()),
+        paymongoPaymentMethodId: v.optional(v.string()),
       })
     ),
     hasSeenSubscriptionPrompt: v.optional(v.boolean()),

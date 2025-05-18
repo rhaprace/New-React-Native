@@ -19,71 +19,10 @@ import { Ionicons } from "@expo/vector-icons";
 import ThankYouModal from "@/components/subscription/ThankYouModal";
 import styles from "@/styles/checkout.styles";
 import { useToast } from "../../hooks/useToast";
-
-const PAYMONGO_SECRET_KEY = process.env.EXPO_PUBLIC_PAYMONGO_SECRET_KEY || "";
-const PAYMONGO_API_URL = "https://api.paymongo.com/v1";
-
-const encodeBasicAuth = (key: string): string => {
-  return btoa(key + ":");
-};
-
-const createPaymentSource = async (paymentType: string, amount: number) => {
-  const sourceRes = await fetch(`${PAYMONGO_API_URL}/sources`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Basic ${encodeBasicAuth(PAYMONGO_SECRET_KEY)}`,
-    },
-    body: JSON.stringify({
-      data: {
-        attributes: {
-          amount: amount,
-          currency: "PHP",
-          type: paymentType,
-          redirect: {
-            success: "https://example.com/success",
-            failed: "https://example.com/failed",
-          },
-        },
-      },
-    }),
-  });
-
-  if (!sourceRes.ok) {
-    const sourceError = await sourceRes.json();
-    console.error("Create Source Error:", sourceError);
-    throw new Error(
-      sourceError.errors?.[0]?.detail || "Failed to create payment source"
-    );
-  }
-
-  const sourceData = await sourceRes.json();
-  return sourceData.data;
-};
-
-const checkPaymentStatus = async (sourceId: string): Promise<boolean> => {
-  try {
-    const response = await fetch(`${PAYMONGO_API_URL}/sources/${sourceId}`, {
-      headers: {
-        Authorization: `Basic ${encodeBasicAuth(PAYMONGO_SECRET_KEY)}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to check payment status");
-    }
-
-    const data = await response.json();
-    console.log("Payment status response:", data);
-    console.log("Payment status:", data.data.attributes.status);
-
-    // Check for both chargeable and paid status
-    return ["chargeable", "paid"].includes(data.data.attributes.status);
-  } catch (error) {
-    console.error("Error checking payment status:", error);
-    return false;
-  }
-};
+import {
+  createPaymentSource,
+  checkPaymentStatus,
+} from "@/services/paymentService";
 
 export default function Checkout() {
   const router = useRouter();
@@ -96,8 +35,6 @@ export default function Checkout() {
     "init" | "processing" | "confirming" | "success" | "failed"
   >("init");
   const toast = useToast();
-
-  // Get plan details from params
   const planName = (params.planName as string) || "Monthly";
   const planPrice = parseInt((params.planPrice as string) || "7500");
   const planDescription =
@@ -211,7 +148,9 @@ export default function Checkout() {
       const maxAttempts = 5;
 
       while (attempts < maxAttempts && !isPaymentSuccessful) {
-        isPaymentSuccessful = await checkPaymentStatus(sourceId);
+        const status = await checkPaymentStatus(sourceId);
+        isPaymentSuccessful =
+          status === true || status === "chargeable" || status === "paid";
         if (isPaymentSuccessful) {
           setPaymentStep("success");
           await processSuccessfulPayment();
@@ -295,8 +234,6 @@ export default function Checkout() {
         },
       });
       await updatePromptSeen();
-
-      // Show success message and thank you modal
       Alert.alert(
         "Payment Successful",
         "Your subscription has been activated successfully! You will receive a confirmation email shortly.",
@@ -304,7 +241,6 @@ export default function Checkout() {
           {
             text: "View Receipt",
             onPress: () => {
-              // TODO: Implement receipt view
               Alert.alert(
                 "Receipt",
                 `Payment Details:\nAmount: ${formatPrice(planPrice)}\nDate: ${new Date().toLocaleDateString()}\nTransaction ID: ${selectedPaymentMethod}_${Date.now()}\n\nA copy has been sent to your email.`
@@ -349,7 +285,6 @@ export default function Checkout() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.scrollView}>
         <View style={styles.container}>
-          {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.backButton}
@@ -360,8 +295,6 @@ export default function Checkout() {
             <Text style={styles.title}>Checkout</Text>
             <View style={styles.placeholder} />
           </View>
-
-          {/* Payment Status Indicator */}
           {paymentStep !== "init" && (
             <View style={styles.statusContainer}>
               <ActivityIndicator
@@ -377,8 +310,6 @@ export default function Checkout() {
               </Text>
             </View>
           )}
-
-          {/* Order Summary */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Order Summary</Text>
             <View style={styles.planContainer}>
@@ -419,8 +350,6 @@ export default function Checkout() {
               <Text style={styles.totalAmount}>{formatPrice(planPrice)}</Text>
             </View>
           </View>
-
-          {/* Payment Methods */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Payment Method</Text>
             <TouchableOpacity
@@ -477,8 +406,6 @@ export default function Checkout() {
               </View>
             </TouchableOpacity>
           </View>
-
-          {/* Payment Button */}
           <View style={styles.buttonContainer}>
             <Button
               variant="primary"
@@ -493,8 +420,6 @@ export default function Checkout() {
                 : `Pay with ${selectedPaymentMethod === "gcash" ? "GCash" : "Maya"}`}
             </Button>
           </View>
-
-          {/* Security and Trust Section */}
           <View style={styles.securitySection}>
             <View style={styles.securityItem}>
               <Ionicons
@@ -513,18 +438,16 @@ export default function Checkout() {
               <Text style={styles.securityText}>30-Day Refund</Text>
             </View>
           </View>
-
-          {/* Terms and Privacy */}
           <View style={styles.termsContainer}>
             <Text style={styles.termsText}>
-              By proceeding, you agree to our{" "}
+              <Text>By proceeding, you agree to our </Text>
               <Text
                 style={styles.termsLink}
                 onPress={() => Linking.openURL("https://example.com/terms")}
               >
                 Terms of Service
-              </Text>{" "}
-              and{" "}
+              </Text>
+              <Text> and </Text>
               <Text
                 style={styles.termsLink}
                 onPress={() => Linking.openURL("https://example.com/privacy")}
@@ -535,8 +458,6 @@ export default function Checkout() {
           </View>
         </View>
       </ScrollView>
-
-      {/* Thank You Modal */}
       <ThankYouModal
         visible={showThankYouModal}
         onClose={() => {

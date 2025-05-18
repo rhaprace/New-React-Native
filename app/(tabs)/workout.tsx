@@ -85,11 +85,8 @@ const WorkoutPlanner = () => {
   }
   const onRefresh = () => {
     setRefreshing(true);
-    // Increment the refresh trigger to force a refetch of the exercises data
     setRefreshTrigger((prev) => prev + 1);
-    // Add a longer timeout to ensure the database has time to update
     setTimeout(() => {
-      // Force another refresh to ensure we get the latest data
       setRefreshTrigger((prev) => prev + 1);
       setRefreshing(false);
     }, 1500);
@@ -120,7 +117,7 @@ const WorkoutPlanner = () => {
         onViewHistory={() => setHistoryModalVisible(true)}
       />
       <TodaysExercises
-        exercises={todaysExercises}
+        exercises={todaysExercises as any}
         userId={convexUser._id}
         refreshing={refreshing}
         onRefresh={onRefresh}

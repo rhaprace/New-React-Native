@@ -128,17 +128,17 @@ const RecommendationModal: React.FC<RecommendationModalProps> = ({
                 <View style={styles.recommendationMacros}>
                   <View style={styles.macroPill}>
                     <Text variant="caption" color="secondary">
-                      {item.calories} cal
+                      <Text weight="semibold">{item.calories}</Text> cal
                     </Text>
                   </View>
                   <View style={styles.macroPill}>
                     <Text variant="caption" color="secondary">
-                      {item.protein}g protein
+                      <Text weight="semibold">{item.protein}g</Text> protein
                     </Text>
                   </View>
                   <View style={styles.macroPill}>
                     <Text variant="caption" color="secondary">
-                      {item.carbs}g carbs
+                      <Text weight="semibold">{item.carbs}g</Text> carbs
                     </Text>
                   </View>
                   <View style={styles.macroPill}>

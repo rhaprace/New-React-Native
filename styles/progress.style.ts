@@ -1,5 +1,12 @@
 import { StyleSheet } from "react-native";
-import { COLORS, SPACING, RADIUS, SHADOW, SLATE, FONT } from "@/constants/theme";
+import {
+  COLORS,
+  SPACING,
+  RADIUS,
+  SHADOW,
+  SLATE,
+  FONT,
+} from "@/constants/theme";
 
 export const styles = StyleSheet.create({
   container: {
@@ -138,13 +145,13 @@ export const styles = StyleSheet.create({
     borderColor: SLATE.slate_200,
   },
   goalMessage: {
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: SPACING.sm,
     padding: SPACING.sm,
     backgroundColor: SLATE.slate_100,
     borderRadius: RADIUS.md,
     borderLeftWidth: 3,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   goalMessageSuccess: {
     borderLeftColor: COLORS.success,
@@ -155,9 +162,9 @@ export const styles = StyleSheet.create({
     backgroundColor: `${SLATE.slate_500}10`,
   },
   weightGoalSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     padding: SPACING.md,
     backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
@@ -168,11 +175,11 @@ export const styles = StyleSheet.create({
     marginRight: SPACING.sm,
   },
   weightGoalButtons: {
-    flexDirection: 'row',
+    flexDirection: "row",
   },
   weightGoalButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
     borderRadius: RADIUS.md,

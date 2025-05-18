@@ -475,21 +475,18 @@ const StepCounter: React.FC<StepCounterProps> = ({ defaultGoal = 10000 }) => {
           </View>
         </View>
         <View style={{ padding: 16, alignItems: "center" }}>
+          {" "}
           <Text
-            style={{
-              color: SLATE.slate_600,
-              textAlign: "center",
-              marginBottom: 8,
-            }}
+            variant="body2"
+            color="secondary"
+            style={{ textAlign: "center", marginBottom: 8 }}
           >
             Step tracking is currently unavailable.
           </Text>
           <Text
-            style={{
-              color: SLATE.slate_500,
-              textAlign: "center",
-              fontSize: 12,
-            }}
+            variant="caption"
+            color="tertiary"
+            style={{ textAlign: "center" }}
           >
             We're working to resolve this issue. Please check back later.
           </Text>

@@ -19,7 +19,9 @@
     "module": "ESNext",
     "isolatedModules": true,
     "noEmit": true
-  },
-  "include": ["./**/*"],
+  },  "include": [
+    "./**/*",
+    "../types/**/*.d.ts"
+  ],
   "exclude": ["./_generated"]
 }

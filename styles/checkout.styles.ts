@@ -220,5 +220,18 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     textDecorationLine: "underline",
   } as TextStyle,
+  processingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+    padding: SPACING.xl,
+  } as ViewStyle,
+  processingText: {
+    fontSize: FONT.size.lg,
+    color: COLORS.textSecondary,
+    textAlign: "center",
+    marginTop: SPACING.lg,
+  } as TextStyle,
 });
 export default styles;

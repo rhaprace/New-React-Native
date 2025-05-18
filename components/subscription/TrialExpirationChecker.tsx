@@ -4,7 +4,6 @@ import { api } from "@/convex/_generated/api";
 import { useUser } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
 import DiscountModal from "./DiscountModal";
-import GCashLinkModal from "./GCashLinkModal";
 import { Alert } from "react-native";
 
 const TrialExpirationChecker: React.FC = () => {
@@ -133,14 +132,6 @@ const TrialExpirationChecker: React.FC = () => {
         onSelectFreeTrial={handleSelectFreeTrial}
         daysLeft={daysLeft}
         showPromoOffer={true}
-      />
-
-      {/* GCash Link Modal */}
-      <GCashLinkModal
-        visible={showGCashModal}
-        onClose={() => setShowGCashModal(false)}
-        onSuccess={handleGCashLinkSuccess}
-        showPromoDetails={true}
       />
     </>
   );

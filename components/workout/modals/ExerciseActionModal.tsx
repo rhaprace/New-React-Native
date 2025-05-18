@@ -321,9 +321,11 @@ const ExerciseActionModal: React.FC<ExerciseActionModalProps> = ({
           />
 
           {exerciseName.trim().length >= 3 && !editMode && (
-            <Text style={styles.matchingText}>
+            <Text variant="body2" color="secondary">
               Exercise type auto-detected:{" "}
-              {exerciseType.charAt(0).toUpperCase() + exerciseType.slice(1)}
+              <Text weight="semibold">
+                {exerciseType.charAt(0).toUpperCase() + exerciseType.slice(1)}
+              </Text>
             </Text>
           )}
 

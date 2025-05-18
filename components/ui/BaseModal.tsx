@@ -49,8 +49,10 @@ const BaseModal: React.FC<BaseModalProps> = ({
     <Modal
       visible={visible}
       animationType="slide"
+      presentationStyle="overFullScreen"
       transparent={true}
       onRequestClose={onClose}
+      statusBarTranslucent={true}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -68,7 +70,7 @@ const BaseModal: React.FC<BaseModalProps> = ({
                 {title}
               </Text>
               {showCloseIcon && (
-                <TouchableOpacity onPress={onClose}>
+                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                   <Ionicons
                     name="close"
                     size={24}
@@ -116,8 +118,7 @@ const BaseModal: React.FC<BaseModalProps> = ({
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: "flex-end", // This will make modal slide from bottom
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     padding: SPACING.md,
   },
@@ -128,6 +129,9 @@ const styles = StyleSheet.create({
     maxWidth: 500,
     padding: SPACING.lg,
     ...SHADOW.lg,
+    elevation: 8, // Increased elevation for Android
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   modalHeader: {
     flexDirection: "row",
@@ -149,6 +153,9 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     marginTop: SPACING.xs,
+  },
+  closeButton: {
+    padding: SPACING.xs,
   },
 });
 

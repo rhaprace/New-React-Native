@@ -6,17 +6,14 @@ import { View, Keyboard, Platform, ActivityIndicator } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, SLATE } from "@/constants/theme";
 import { Text } from "@/components/ui";
+import SubscriptionGate from "@/components/SubscriptionGate";
 
 export default function TabLayout() {
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const [isTabsReady, setIsTabsReady] = useState(false);
-
-  // Mark tabs as ready after first render
   useEffect(() => {
     setIsTabsReady(true);
   }, []);
-
-  // Add keyboard listeners
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
@@ -30,15 +27,11 @@ export default function TabLayout() {
         setKeyboardVisible(false);
       }
     );
-
-    // Clean up listeners
     return () => {
       keyboardDidShowListener.remove();
       keyboardDidHideListener.remove();
     };
   }, []);
-
-  // Show loading indicator if tabs aren't ready
   if (!isTabsReady) {
     return (
       <LinearGradient
@@ -63,13 +56,8 @@ export default function TabLayout() {
   }
 
   return (
-    <LinearGradient
-      colors={[SLATE.slate_900, SLATE.slate_800]}
-      style={{ flex: 1 }}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-    >
-      <View style={{ flex: 1 }}>
+    <SubscriptionGate>
+      <View style={{ flex: 1, backgroundColor: SLATE.slate_900 }}>
         <Tabs
           screenOptions={{
             tabBarShowLabel: false,
@@ -91,7 +79,6 @@ export default function TabLayout() {
               shadowOffset: { width: 0, height: -4 },
               shadowOpacity: 0.2,
               shadowRadius: 8,
-              // Hide the tab bar when keyboard is visible
               display: isKeyboardVisible ? "none" : "flex",
             },
           }}
@@ -154,6 +141,6 @@ export default function TabLayout() {
           />
         </Tabs>
       </View>
-    </LinearGradient>
+    </SubscriptionGate>
   );
 }

@@ -1,7 +1,6 @@
 import React from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   Modal,
   FlatList,
@@ -10,6 +9,7 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS } from "@/constants/theme";
 import { styles } from "@/styles/workout.styles";
+import { Text } from "@/components/ui";
 
 interface HistoryItem {
   date: string;
@@ -38,7 +38,9 @@ const WorkoutHistoryModal: React.FC<WorkoutHistoryModalProps> = ({
     >
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Workout History</Text>
+          <Text variant="h5" weight="semibold">
+            Workout History
+          </Text>
 
           {history ? (
             <FlatList
@@ -46,7 +48,7 @@ const WorkoutHistoryModal: React.FC<WorkoutHistoryModalProps> = ({
               keyExtractor={(item) => item.date}
               renderItem={({ item }) => (
                 <View style={styles.historyItem}>
-                  <Text style={styles.historyDate}>
+                  <Text variant="body1" weight="medium">
                     {new Date(item.date).toLocaleDateString("en-US", {
                       weekday: "short",
                       month: "short",
@@ -60,7 +62,7 @@ const WorkoutHistoryModal: React.FC<WorkoutHistoryModalProps> = ({
                         size={16}
                         color={COLORS.error}
                       />
-                      <Text style={styles.historyValue}>
+                      <Text variant="body2" color="secondary">
                         {item.totalCaloriesBurned} cal
                       </Text>
                     </View>
@@ -70,7 +72,7 @@ const WorkoutHistoryModal: React.FC<WorkoutHistoryModalProps> = ({
                         size={16}
                         color={COLORS.primary}
                       />
-                      <Text style={styles.historyValue}>
+                      <Text variant="body2" color="secondary">
                         {item.totalDuration} min
                       </Text>
                     </View>
@@ -80,7 +82,7 @@ const WorkoutHistoryModal: React.FC<WorkoutHistoryModalProps> = ({
                         size={16}
                         color={COLORS.secondary}
                       />
-                      <Text style={styles.historyValue}>
+                      <Text variant="body2" color="secondary">
                         {item.exerciseCount} exercises
                       </Text>
                     </View>
@@ -92,11 +94,10 @@ const WorkoutHistoryModal: React.FC<WorkoutHistoryModalProps> = ({
             <ActivityIndicator size="large" color={COLORS.primary} />
           )}
 
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={onClose}
-          >
-            <Text style={styles.closeButtonText}>Close</Text>
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <Text variant="body1" weight="semibold" color="onPrimary">
+              Close
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
