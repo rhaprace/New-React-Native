@@ -43,3 +43,4 @@ yarn-error.*
 # project specific
 app-example
 .convex/auth.config.js
+test-email.js
