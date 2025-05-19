@@ -63,6 +63,17 @@ AtleTech is a comprehensive fitness application designed to help users track the
 - `convex/` - Convex backend code (schema, mutations, queries)
 - `providers/` - Context providers for the application
 - `styles/` - Global styles
+- `services/` - Service modules for API interactions
+- `scripts/` - Utility scripts for development and deployment
+
+### Server-Side Code Separation
+
+For deployment, server-side code should be separated from client-side code. See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions on how to properly separate and deploy server and client code.
+
+The following directories/files contain server-side code that should not be bundled with the client app:
+
+- `convex/` - All Convex backend code
+- `services/paymentService.ts` - Server-side payment processing
 
 ## Development Resources
 

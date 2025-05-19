@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useUser } from "@clerk/clerk-expo";
+import { View } from "react-native";
 
 export default function InitialLayout() {
   const { isLoaded, isSignedIn } = useAuth();
@@ -139,6 +140,6 @@ export default function InitialLayout() {
     }
   }, [isSignedIn, segments]);
 
-  // Don't render anything - this component only handles navigation
-  return null;
+  // Return an empty View instead of null to avoid potential issues with text nodes
+  return <View />;
 }

@@ -6,11 +6,11 @@ import {
   StyleSheet,
   Button,
 } from "react-native";
-import { useQuery, useMutation, useConvexAuth } from "convex/react";
+import { useQuery, useMutation, useConvexAuth, useConvex } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useRouter } from "expo-router";
 import { COLORS } from "@/constants/theme";
-import { checkPaymentStatus } from "@/services/paymentService";
+import { checkPaymentStatus } from "@/services/paymentServiceClient";
 
 export default function PaymentChecker() {
   const router = useRouter();
@@ -24,6 +24,8 @@ export default function PaymentChecker() {
   const updatePromptSeen = useMutation(
     api.subscription.updateSubscriptionPromptSeen
   );
+  // Get the Convex client
+  const convex = useConvex();
   useEffect(() => {
     if (!isAuthenticated) {
       return;
@@ -94,14 +96,14 @@ export default function PaymentChecker() {
         setStatus("expired");
         return;
       }
-      const paymentStatus = await checkPaymentStatus(paymentSource.sourceId);
-      if (typeof paymentStatus === "boolean") {
-        setStatus(paymentStatus ? "chargeable" : "failed");
-      } else {
-        setStatus(paymentStatus);
-      }
+      // Use the Convex client from the top level
+      const paymentStatus = await checkPaymentStatus(
+        convex,
+        paymentSource.sourceId
+      );
+      setStatus(paymentStatus);
+
       const isSuccessful =
-        paymentStatus === true ||
         paymentStatus === "chargeable" ||
         paymentStatus === "paid" ||
         paymentStatus === "completed";

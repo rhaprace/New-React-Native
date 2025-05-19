@@ -26,7 +26,6 @@ import type * as initChatReset from "../initChatReset.js";
 import type * as internal_chatReset from "../internal/chatReset.js";
 import type * as internal_email from "../internal/email.js";
 import type * as meal from "../meal.js";
-import type * as payment from "../payment.js";
 import type * as recentWorkouts from "../recentWorkouts.js";
 import type * as scheduledTasks from "../scheduledTasks.js";
 import type * as seedExerciseData from "../seedExerciseData.js";
@@ -60,7 +59,6 @@ declare const fullApi: ApiFromModules<{
   "internal/chatReset": typeof internal_chatReset;
   "internal/email": typeof internal_email;
   meal: typeof meal;
-  payment: typeof payment;
   recentWorkouts: typeof recentWorkouts;
   scheduledTasks: typeof scheduledTasks;
   seedExerciseData: typeof seedExerciseData;

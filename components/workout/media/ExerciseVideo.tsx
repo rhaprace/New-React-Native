@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text } from "react-native";
+import { View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS } from "@/constants/theme";
 import { styles } from "@/styles/[day].style";
 import { Video, ResizeMode } from "expo-av";
+import { Text } from "@/components/ui";
 
 type VideoMap = {
   [key: string]: any;
@@ -58,7 +59,9 @@ const ExerciseVideo = ({ videoUrl }: ExerciseVideoProps) => {
           color={COLORS.primary}
         />
         <Text
-          style={[styles.videoPlaceholderText, { color: COLORS.textSecondary }]}
+          variant="body2"
+          color="secondary"
+          style={styles.videoPlaceholderText}
         >
           Exercise demonstration not available
         </Text>
@@ -76,7 +79,9 @@ const ExerciseVideo = ({ videoUrl }: ExerciseVideoProps) => {
             color={COLORS.error}
           />
           <Text
-            style={[styles.videoPlaceholderText, { color: COLORS.primary }]}
+            variant="body2"
+            color="primary"
+            style={styles.videoPlaceholderText}
           >
             External video not supported
           </Text>
@@ -94,7 +99,9 @@ const ExerciseVideo = ({ videoUrl }: ExerciseVideoProps) => {
           color={COLORS.error}
         />
         <Text
-          style={[styles.videoPlaceholderText, { color: COLORS.textSecondary }]}
+          variant="body2"
+          color="secondary"
+          style={styles.videoPlaceholderText}
         >
           Error loading video
         </Text>

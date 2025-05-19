@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useMutation } from "convex/react";
+import { useMutation, useConvex } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { COLORS } from "@/constants/theme";
 import Button from "@/components/ui/Button";
@@ -22,7 +22,7 @@ import { useToast } from "../../hooks/useToast";
 import {
   createPaymentSource,
   checkPaymentStatus,
-} from "@/services/paymentService";
+} from "@/services/paymentServiceClient";
 
 export default function Checkout() {
   const router = useRouter();
@@ -51,6 +51,8 @@ export default function Checkout() {
     api.subscription.updateSubscriptionPromptSeen
   );
   const savePaymentSource = useMutation(api.subscription.savePaymentSource);
+  // Get the Convex client
+  const convex = useConvex();
 
   const handlePayment = async () => {
     try {
@@ -61,11 +63,22 @@ export default function Checkout() {
         message: "Initiating payment process...",
       });
 
+      // Use the Convex client from the top level
       const source = await createPaymentSource(
+        convex,
         selectedPaymentMethod,
-        planPrice
+        planPrice,
+        {
+          redirectSuccess: "atletech://payment/success",
+          redirectFailed: "atletech://payment/failed",
+        }
       );
-      console.log("Payment Source:", source);
+      console.log("Payment Source:", JSON.stringify(source, null, 2));
+
+      // Log the redirect URLs for debugging
+      console.log("Checkout URL:", source.attributes.redirect.checkout_url);
+      console.log("Success URL:", source.attributes.redirect.success);
+      console.log("Failed URL:", source.attributes.redirect.failed);
 
       await savePaymentSource({ sourceId: source.id });
 
@@ -148,9 +161,9 @@ export default function Checkout() {
       const maxAttempts = 5;
 
       while (attempts < maxAttempts && !isPaymentSuccessful) {
-        const status = await checkPaymentStatus(sourceId);
-        isPaymentSuccessful =
-          status === true || status === "chargeable" || status === "paid";
+        // Use the Convex client from the top level
+        const status = await checkPaymentStatus(convex, sourceId);
+        isPaymentSuccessful = status === "chargeable" || status === "paid";
         if (isPaymentSuccessful) {
           setPaymentStep("success");
           await processSuccessfulPayment();

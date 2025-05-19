@@ -8,10 +8,9 @@ import {
   TextInput,
   Alert,
 } from "react-native";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery, useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { linkGCashAccount } from "@/services/paymentService";
-import { useRouter } from "expo-router";
+import { linkGCashAccount } from "@/services/paymentServiceClient";
 import { COLORS, FONT, RADIUS, SHADOW, SPACING } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import BaseModal from "@/components/ui/BaseModal";
@@ -41,9 +40,10 @@ const DiscountModal: React.FC<DiscountModalProps> = ({
   const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Get user information
+  // Get user information and Convex client
   const user = useQuery(api.users.getUser);
   const saveGCashNumber = useMutation(api.subscription.saveGCashNumber);
+  const convex = useConvex();
 
   const handlePhoneNumberChange = (text: string) => {
     const cleaned = text.replace(/[^0-9]/g, "");
@@ -67,11 +67,16 @@ const DiscountModal: React.FC<DiscountModalProps> = ({
 
     setLoading(true);
     try {
-      const { customerId, paymentMethodId } = await linkGCashAccount(
-        phoneNumber,
-        user?.fullname || "",
-        user?.email || ""
-      );
+      const fullname = user?.fullname || "";
+      const nameParts = fullname.split(" ");
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+      const { customerId, paymentMethodId } = await linkGCashAccount(convex, {
+        firstName,
+        lastName,
+        phone: phoneNumber,
+        email: user?.email || "",
+      });
 
       await saveGCashNumber({
         phoneNumber,
@@ -81,7 +86,6 @@ const DiscountModal: React.FC<DiscountModalProps> = ({
 
       setLoading(false);
       setIsLinkingGCash(false);
-      // Call the onSelectFreeTrial after successful linking
       onSelectFreeTrial();
     } catch (error) {
       setLoading(false);
@@ -101,7 +105,6 @@ const DiscountModal: React.FC<DiscountModalProps> = ({
     >
       <ScrollView style={styles.scrollView}>
         <View style={styles.container}>
-          {/* Header with timer */}
           <View style={styles.timerContainer}>
             <Ionicons name="time-outline" size={20} color={COLORS.error} />
             <Text
@@ -113,8 +116,6 @@ const DiscountModal: React.FC<DiscountModalProps> = ({
               {daysLeft} {daysLeft === 1 ? "day" : "days"} left on your trial
             </Text>
           </View>
-
-          {/* Discount message */}
           <Text
             variant="body1"
             color="secondary"
@@ -327,8 +328,6 @@ const DiscountModal: React.FC<DiscountModalProps> = ({
               Choose Yearly Plan
             </Button>
           </View>
-
-          {/* Free Trial with GCash Option */}
           {isLinkingGCash ? (
             <View style={styles.gcashContainer}>
               <Text
@@ -348,8 +347,6 @@ const DiscountModal: React.FC<DiscountModalProps> = ({
                 To activate your free 30-day trial, please link your GCash
                 account. No charges will be made during the trial period.
               </Text>
-
-              {/* Security Note */}
               <View style={styles.securityNote}>
                 <Ionicons
                   name="shield-checkmark"

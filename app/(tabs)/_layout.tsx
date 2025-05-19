@@ -58,12 +58,14 @@ export default function TabLayout() {
   return (
     <SubscriptionGate>
       <View style={{ flex: 1, backgroundColor: SLATE.slate_900 }}>
+        {" "}
         <Tabs
           screenOptions={{
             tabBarShowLabel: false,
             headerShown: false,
             tabBarActiveTintColor: COLORS.primary,
             tabBarInactiveTintColor: COLORS.textTertiary,
+            tabBarLabel: ({ focused, color }) => null, // Return null to ensure no raw strings are used
             tabBarStyle: {
               backgroundColor: COLORS.surface,
               borderTopWidth: 0,
@@ -83,12 +85,14 @@ export default function TabLayout() {
             },
           }}
         >
+          {" "}
           <Tabs.Screen
             name="index"
             options={{
               tabBarIcon: ({ size, color }) => (
                 <Ionicons name="home" size={size} color={color} />
               ),
+              tabBarAccessibilityLabel: "Home",
             }}
           />
           <Tabs.Screen
@@ -97,16 +101,18 @@ export default function TabLayout() {
               tabBarIcon: ({ size, color }) => (
                 <FontAwesome5 name="utensils" size={size} color={color} />
               ),
+              tabBarAccessibilityLabel: "Meal",
             }}
-          />
+          />{" "}
           <Tabs.Screen
             name="progress"
             options={{
               tabBarIcon: ({ size, color }) => (
                 <FontAwesome5 name="chart-line" size={size} color={color} />
               ),
+              tabBarAccessibilityLabel: "Progress",
             }}
-          />
+          />{" "}
           <Tabs.Screen
             name="workout"
             options={{
@@ -117,8 +123,9 @@ export default function TabLayout() {
                   color={color}
                 />
               ),
+              tabBarAccessibilityLabel: "Workout",
             }}
-          />
+          />{" "}
           <Tabs.Screen
             name="chat"
             options={{
@@ -129,14 +136,16 @@ export default function TabLayout() {
                   color={color}
                 />
               ),
+              tabBarAccessibilityLabel: "Chat",
             }}
-          />
+          />{" "}
           <Tabs.Screen
             name="profile"
             options={{
               tabBarIcon: ({ size, color }) => (
                 <FontAwesome5 name="user" size={size} color={color} />
               ),
+              tabBarAccessibilityLabel: "Profile",
             }}
           />
         </Tabs>

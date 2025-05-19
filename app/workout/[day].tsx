@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   FlatList,
@@ -11,6 +10,7 @@ import { useLocalSearchParams } from "expo-router";
 import { COLORS } from "@/constants/theme";
 import { weeklyWorkouts } from "@/constants/workoutData";
 import { ExerciseVideo } from "@/components/workout";
+import { Text } from "@/components/ui";
 
 type Exercise = {
   name: string;
@@ -88,7 +88,12 @@ const DayWorkout = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>
+        <Text
+          variant="h4"
+          weight="bold"
+          color="onPrimary"
+          style={styles.headerTitle}
+        >
           {dayString.charAt(0).toUpperCase() + dayString.slice(1)}'s Workout
         </Text>
       </View>
@@ -97,20 +102,45 @@ const DayWorkout = () => {
         keyExtractor={(item, index) => index.toString()}
         renderItem={({ item }) => (
           <View style={styles.exerciseCard}>
-            <Text style={styles.exerciseName}>{item.name}</Text>
-            <Text style={styles.exerciseDuration}>{item.duration} mins</Text>
+            <Text
+              variant="body1"
+              weight="bold"
+              color="primary"
+              style={styles.exerciseName}
+            >
+              {item.name}
+            </Text>
+            <Text
+              variant="body2"
+              color="secondary"
+              style={styles.exerciseDuration}
+            >
+              {item.duration} mins
+            </Text>
             <View style={styles.buttonContainer}>
               <TouchableOpacity
                 style={styles.startButton}
                 onPress={() => handleStartTimer(item.duration)}
               >
-                <Text style={styles.startButtonText}>Start</Text>
+                <Text
+                  variant="button"
+                  color="onPrimary"
+                  style={styles.startButtonText}
+                >
+                  Start
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.viewButton}
                 onPress={() => handleViewExercise(item)}
               >
-                <Text style={styles.viewButtonText}>View</Text>
+                <Text
+                  variant="button"
+                  color="onPrimary"
+                  style={styles.viewButtonText}
+                >
+                  View
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -118,7 +148,12 @@ const DayWorkout = () => {
       />
       {isRunning && seconds > 0 && (
         <View style={styles.timerContainer}>
-          <Text style={styles.timerText}>
+          <Text
+            variant="body1"
+            weight="semibold"
+            color="primary"
+            style={styles.timerText}
+          >
             Time Remaining: {formatTime(seconds)}
           </Text>
         </View>
@@ -131,8 +166,19 @@ const DayWorkout = () => {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{selectedExercise?.name}</Text>
-            <Text style={styles.modalInstructions}>
+            <Text
+              variant="h5"
+              weight="bold"
+              color="primary"
+              style={styles.modalTitle}
+            >
+              {selectedExercise?.name}
+            </Text>
+            <Text
+              variant="body1"
+              color="secondary"
+              style={styles.modalInstructions}
+            >
               {selectedExercise?.instructions || "No instructions available."}
             </Text>
             <ExerciseVideo videoUrl={selectedExercise?.videoUrl} />
@@ -140,7 +186,13 @@ const DayWorkout = () => {
               style={styles.closeButton}
               onPress={() => setModalVisible(false)}
             >
-              <Text style={styles.closeButtonText}>Close</Text>
+              <Text
+                variant="button"
+                color="onPrimary"
+                style={styles.closeButtonText}
+              >
+                Close
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

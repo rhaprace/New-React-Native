@@ -1,10 +1,16 @@
-import { registerRootComponent } from 'expo';
-import { ExpoRoot } from 'expo-router';
+import { registerRootComponent } from "expo";
+import { ExpoRoot } from "expo-router";
+import React from "react";
+import { View } from "react-native";
 
 // Must be exported or Fast Refresh won't update the context
 export function App() {
-  const ctx = require.context('./app');
-  return <ExpoRoot context={ctx} />;
+  const ctx = require.context("./app");
+  return (
+    <View style={{ flex: 1 }}>
+      <ExpoRoot context={ctx} />
+    </View>
+  );
 }
 
 registerRootComponent(App);

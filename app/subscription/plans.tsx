@@ -14,12 +14,12 @@ import { useRouter } from "expo-router";
 import { COLORS } from "@/constants/theme";
 import Button from "@/components/ui/Button";
 import { Ionicons } from "@expo/vector-icons";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery, useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import DiscountModal from "@/components/subscription/DiscountModal";
 import PaymentChecker from "./payment-checker";
 import { useAuth, useUser } from "@clerk/clerk-expo";
-import { linkGCashAccount } from "@/services/paymentService";
+import { linkGCashAccount } from "@/services/paymentServiceClient";
 import { styles } from "@/styles/plans.styles";
 
 export default function SubscriptionPlans() {
@@ -39,6 +39,8 @@ export default function SubscriptionPlans() {
     api.subscription.checkSubscriptionStatus
   );
   const saveGCashNumber = useMutation(api.subscription.saveGCashNumber);
+  // Get the Convex client
+  const convex = useConvex();
   // Fetch user data to check hasSeenSubscriptionPrompt and subscription status
   const userData = useQuery(api.users.getUserByClerkId, {
     clerkId: user?.id || "",
@@ -181,12 +183,18 @@ export default function SubscriptionPlans() {
 
       const userEmail = user?.primaryEmailAddress?.emailAddress || "";
 
+      // Split the userName into first and last name
+      const nameParts = userName.split(" ");
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+
       // Call the updated linkGCashAccount function with proper parameters
-      const { customerId, paymentMethodId } = await linkGCashAccount(
-        phoneNumber,
-        userName,
-        userEmail
-      );
+      const { customerId, paymentMethodId } = await linkGCashAccount(convex, {
+        firstName,
+        lastName,
+        phone: phoneNumber,
+        email: userEmail,
+      });
 
       await saveGCashNumber({
         phoneNumber,

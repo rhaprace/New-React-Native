@@ -1,0 +1,12 @@
+{
+  "name": "atletech-server",
+  "version": "1.0.0",
+  "description": "Server-side code for Atletech application",
+  "main": "index.js",
+  "scripts": {
+    "dev": "npx convex dev"
+  },
+  "dependencies": {
+    "convex": "^1.0.0"
+  }
+}
