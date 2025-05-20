@@ -29,6 +29,7 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png",
       "publicPath": "/",
+      "template": "./app.html",
       "build": {
         "babel": {
           "include": ["@expo/vector-icons"]
