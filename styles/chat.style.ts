@@ -48,4 +48,35 @@ export const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: SPACING.md,
   },
+  errorContainer: {
+    padding: 10,
+    backgroundColor: "#ffebee",
+    marginHorizontal: 10,
+    marginBottom: 10,
+    borderRadius: 8,
+  },
+  errorText: {
+    color: "#DC2626",
+    fontSize: 14,
+    textAlign: "center",
+  },
+  commandButtons: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    padding: SPACING.sm,
+    gap: SPACING.xs,
+    justifyContent: "center",
+  },
+  commandButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.xs,
+  },
+  commandButtonText: {
+    color: COLORS.textOnPrimary,
+    fontSize: 14,
+    fontWeight: "500",
+  },
 });

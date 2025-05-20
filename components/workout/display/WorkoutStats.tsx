@@ -1,8 +1,9 @@
 import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, TouchableOpacity } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS } from "@/constants/theme";
 import { styles } from "@/styles/workout.styles";
+import { Text } from "@/components/ui";
 
 interface WorkoutStatsProps {
   totalCalories: number;
@@ -31,10 +32,7 @@ const WorkoutStats: React.FC<WorkoutStatsProps> = ({
         <Text style={styles.statValue}>{totalMinutes}</Text>
         <Text style={styles.statLabel}>Minutes</Text>
       </View>
-      <TouchableOpacity
-        style={styles.statCard}
-        onPress={onViewHistory}
-      >
+      <TouchableOpacity style={styles.statCard} onPress={onViewHistory}>
         <MaterialCommunityIcons
           name="chart-bar"
           size={24}

@@ -2,11 +2,26 @@ import { Tabs } from "expo-router";
 import { MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useState, useEffect } from "react";
-import { View, Keyboard, Platform, ActivityIndicator } from "react-native";
+import {
+  View,
+  Keyboard,
+  Platform,
+  ActivityIndicator,
+  StyleSheet,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { COLORS, SLATE } from "@/constants/theme";
+import { COLORS, SLATE, SPACING } from "@/constants/theme";
 import { Text } from "@/components/ui";
 import SubscriptionGate from "@/components/SubscriptionGate";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+// Define styles outside of the component
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: SLATE.slate_900,
+  },
+});
 
 export default function TabLayout() {
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
@@ -57,22 +72,24 @@ export default function TabLayout() {
 
   return (
     <SubscriptionGate>
-      <View style={{ flex: 1, backgroundColor: SLATE.slate_900 }}>
-        {" "}
+      <SafeAreaView style={styles.container} edges={["right", "left", "top"]}>
         <Tabs
           screenOptions={{
             tabBarShowLabel: false,
             headerShown: false,
             tabBarActiveTintColor: COLORS.primary,
             tabBarInactiveTintColor: COLORS.textTertiary,
-            tabBarLabel: ({ focused, color }) => null, // Return null to ensure no raw strings are used
+            tabBarLabel: () => null, // Return null to ensure no raw strings are used
+            // Add padding to screen content
+            tabBarItemStyle: {
+              paddingBottom: 6,
+            },
             tabBarStyle: {
               backgroundColor: COLORS.surface,
-              borderTopWidth: 0,
               position: "absolute",
               elevation: 0,
-              height: 60,
-              paddingBottom: 8,
+              height: Platform.OS === "ios" ? 85 : 70,
+              paddingBottom: Platform.OS === "ios" ? 25 : 12,
               paddingTop: 8,
               borderTopLeftRadius: 24,
               borderTopRightRadius: 24,
@@ -82,10 +99,14 @@ export default function TabLayout() {
               shadowOpacity: 0.2,
               shadowRadius: 8,
               display: isKeyboardVisible ? "none" : "flex",
+              // Add safe area inset to ensure proper spacing at the bottom
+              paddingHorizontal: 10,
+              marginBottom: Platform.OS === "ios" ? -10 : 0,
+              borderTopWidth: 0.5,
+              borderTopColor: COLORS.border,
             },
           }}
         >
-          {" "}
           <Tabs.Screen
             name="index"
             options={{
@@ -103,7 +124,7 @@ export default function TabLayout() {
               ),
               tabBarAccessibilityLabel: "Meal",
             }}
-          />{" "}
+          />
           <Tabs.Screen
             name="progress"
             options={{
@@ -112,7 +133,7 @@ export default function TabLayout() {
               ),
               tabBarAccessibilityLabel: "Progress",
             }}
-          />{" "}
+          />
           <Tabs.Screen
             name="workout"
             options={{
@@ -125,20 +146,16 @@ export default function TabLayout() {
               ),
               tabBarAccessibilityLabel: "Workout",
             }}
-          />{" "}
+          />
           <Tabs.Screen
             name="chat"
             options={{
               tabBarIcon: ({ size, color }) => (
-                <Ionicons
-                  name="chatbubble-ellipses"
-                  size={size}
-                  color={color}
-                />
+                <Ionicons name="mail" size={size} color={color} />
               ),
               tabBarAccessibilityLabel: "Chat",
             }}
-          />{" "}
+          />
           <Tabs.Screen
             name="profile"
             options={{
@@ -149,7 +166,7 @@ export default function TabLayout() {
             }}
           />
         </Tabs>
-      </View>
+      </SafeAreaView>
     </SubscriptionGate>
   );
 }

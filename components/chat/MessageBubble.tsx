@@ -7,6 +7,7 @@ interface MessageBubbleProps {
   content: string;
   isUserMessage: boolean;
   timestamp: string;
+  isTyping?: boolean;
 }
 
 const MessageBubble = ({

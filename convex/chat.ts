@@ -4,26 +4,47 @@ import { Id } from "./_generated/dataModel";
 
 // Define regex patterns for message matching
 const MESSAGE_PATTERNS = {
+  // Profile related patterns
   profile:
-    /(?:show|tell|get|what|my|about)\s+(?:me|my|profile|stats|information|details|data)/i,
+    /^(?:show|tell|get|what|about)\s+(?:my\s+)?(?:profile|stats|information|details|data|measurements|goals|settings)$/i,
+
+  // Workout related patterns
   workout:
-    /(?:show|tell|get|what|my|about)\s+(?:workout|exercise|training|fitness|gym|routine)/i,
+    /^(?:show|tell|get|what|about)\s+(?:my\s+)?(?:workout|exercise|training|fitness|gym|routine)(?:\s+(?:plan|schedule|program|today|this week))?$/i,
+  workoutProgress:
+    /^(?:check|show|what|how)\s+(?:is|was)\s+(?:my\s+)?(?:workout|exercise|training|fitness)\s+(?:progress|improvement|results)$/i,
+
+  // Nutrition related patterns
   nutrition:
-    /(?:show|tell|get|what|my|about)\s+(?:meal|food|nutrition|diet|calories|eating|macros)/i,
+    /^(?:show|tell|get|what|about)\s+(?:my\s+)?(?:meal|food|nutrition|diet|calories|eating|macros)(?:\s+(?:plan|today|this week))?$/i,
+  nutritionProgress:
+    /^(?:check|show|what|how)\s+(?:is|was)\s+(?:my\s+)?(?:meal|food|nutrition|diet)\s+(?:progress|tracking|history)$/i,
+
+  // Progress tracking patterns
   progress:
-    /(?:show|tell|get|what|my|about)\s+(?:progress|improvement|trend|results|achievement)/i,
+    /^(?:show|tell|get|what|about)\s+(?:my\s+)?(?:overall\s+)?(?:progress|improvement|trend|results|achievement|stats)$/i,
+  weightProgress:
+    /^(?:check|show|what|how)\s+(?:is|was)\s+(?:my\s+)?(?:weight|body)\s+(?:progress|change|trend)$/i,
+
+  // Recommendation patterns
   recommendation:
-    /(?:recommend|suggest|advice|what|should|can|could)\s+(?:i|me|my|to|for|about)/i,
+    /^(?:recommend|suggest|advice|what|should|can|could)\s+(?:you\s+)?(?:give|tell|show)\s+(?:me|my)\s+(?:about|for|to)?/i,
   mealRecommendation:
-    /(?:recommend|suggest|what|should|can|could)\s+(?:meal|food|eat|dinner|lunch|breakfast|snack)/i,
+    /^(?:recommend|suggest|what|should)\s+(?:i|me)\s+(?:eat|have|cook|prepare)\s+(?:for\s+)?(?:meal|food|breakfast|lunch|dinner|snack)$/i,
   workoutRecommendation:
-    /(?:recommend|suggest|what|should|can|could)\s+(?:workout|exercise|training|routine)/i,
+    /^(?:recommend|suggest|what|should)\s+(?:i|me)\s+(?:do|try)\s+(?:for\s+)?(?:workout|exercise|training|routine|fitness)$/i,
+
+  // Specific queries
   calorieCheck:
-    /(?:how|what|tell|show)\s+(?:many|much|are|is)\s+(?:calories|calorie)/i,
+    /^(?:how|what|tell|show)\s+(?:many|much)\s+(?:calories|calorie)\s+(?:did|have|should)\s+(?:i|me)\s+(?:eat|burn|consume|need)$/i,
   macroCheck:
-    /(?:how|what|tell|show)\s+(?:many|much|are|is)\s+(?:protein|carbs|fat|macros)/i,
+    /^(?:how|what|tell|show)\s+(?:are|is|about)\s+(?:my\s+)?(?:protein|carbs|fat|macros|macronutrients)(?:\s+(?:today|this week|goals))?$/i,
   goalCheck:
-    /(?:how|what|tell|show)\s+(?:am|is|are)\s+(?:i|my|the)\s+(?:doing|progressing|performing)/i,
+    /^(?:how|what|tell|show)\s+(?:am|is|are)\s+(?:i|my|the)\s+(?:doing|progressing|performing)\s+(?:on|with|in)\s+(?:my\s+)?(?:goals|targets|objectives)$/i,
+
+  // Help and guidance
+  help: /^(?:help|guide|assist|support|what can you do|how do you work)$/i,
+  settings: /^(?:settings|preferences|configure|setup|customize)$/i,
 };
 
 // Define types for workout data
@@ -399,54 +420,66 @@ export const addChatMessage = mutation({
   },
 });
 
-// Add these menu options after the imports
+// Define menu options and categories
 const MENU_OPTIONS = {
   WORKOUT: {
-    title: "Workout Options",
+    title: "🏋️ Workout Options",
     choices: [
-      "Get today's workout plan",
-      "View weekly workout schedule",
-      "Get weight loss workout",
-      "Get muscle gain workout",
-      "Get maintenance workout",
-      "Get beginner workout",
-      "Get advanced workout",
+      "get today's workout plan",
+      "show my weekly workout schedule",
+      "recommend a weight loss workout",
+      "recommend a muscle gain workout",
+      "show my workout progress",
+      "check workout history",
+      "suggest beginner workout",
+      "suggest advanced workout",
     ],
   },
   NUTRITION: {
-    title: "Nutrition Options",
+    title: "🍽️ Nutrition Options",
     choices: [
-      "Get today's meal plan",
-      "View calorie tracking",
-      "Get weight loss meal plan",
-      "Get muscle gain meal plan",
-      "Get maintenance meal plan",
-      "Check macro balance",
-      "Get meal timing suggestions",
+      "show today's meal plan",
+      "check my calorie tracking",
+      "recommend weight loss meals",
+      "recommend muscle gain meals",
+      "check my macro balance",
+      "suggest meal timing",
+      "show nutrition progress",
+      "recommend healthy snacks",
     ],
   },
   PROGRESS: {
-    title: "Progress Tracking",
+    title: "📈 Progress Tracking",
     choices: [
-      "View weekly progress",
-      "View monthly progress",
-      "Check goal adherence",
-      "View workout history",
-      "View nutrition history",
-      "Get progress insights",
-      "View achievement stats",
+      "show my weekly progress",
+      "check monthly progress",
+      "check goal progress",
+      "show workout history",
+      "show nutrition history",
+      "check weight progress",
+      "show achievement stats",
     ],
   },
   PROFILE: {
-    title: "Profile Information",
+    title: "👤 Profile Information",
     choices: [
-      "View current stats",
-      "Update weight goal",
-      "Update activity level",
-      "View calorie goals",
-      "View macro goals",
-      "View workout preferences",
-      "View meal preferences",
+      "show my current stats",
+      "check weight goal",
+      "check activity level",
+      "show calorie goals",
+      "show macro goals",
+      "check workout preferences",
+      "show my profile settings",
+    ],
+  },
+  HELP: {
+    title: "❓ Help & Support",
+    choices: [
+      "show all commands",
+      "how to track workouts",
+      "how to track meals",
+      "how to check progress",
+      "customize settings",
     ],
   },
 };
@@ -493,31 +526,40 @@ interface User {
 
 // Add this helper function to format menu options
 function formatMenuOptions(): string {
-  let menuText = "📋 Available Options:\n\n";
+  let menuText = "📋 Available Commands\n\n";
+
   Object.entries(MENU_OPTIONS).forEach(([category, data]) => {
-    menuText += `🔹 ${data.title}:\n`;
+    menuText += data.title + "\n" + "--------------------\n";
     data.choices.forEach((choice, index) => {
-      menuText += `${index + 1}. ${choice}\n`;
+      menuText += "* " + choice + "\n";
     });
     menuText += "\n";
   });
+
+  menuText += "Tips:\n";
+  menuText += "* You can use these commands exactly as shown\n";
+  menuText += "* Type 'help' for more assistance\n";
+  menuText += "* Type 'menu' to see this list again\n";
+
   return menuText;
 }
 
-// Update the getTimeBasedGreeting function with only three greetings
+// Update the getTimeBasedGreeting function with more natural responses
 function getTimeBasedGreeting(): string {
   const hour = new Date().getHours();
 
   if (hour >= 5 && hour < 12) {
     return "Good morning";
-  } else if (hour >= 12 && hour < 22) {
+  } else if (hour >= 12 && hour < 17) {
+    return "Good afternoon";
+  } else if (hour >= 17 && hour < 22) {
     return "Good evening";
   } else {
     return "Good night";
   }
 }
 
-// Update greeting patterns to only include morning, evening, and night
+// Update greeting patterns for more natural conversation
 const GREETING_PATTERNS = {
   hello:
     /^(hi|hello|hey|greetings|sup|yo|what's up|whats up|howdy|hola|hey there|hi there)$/i,
@@ -545,6 +587,8 @@ export const generateBotResponse = mutation({
   args: {
     userId: v.id("users"),
     userMessage: v.string(),
+    systemContext: v.optional(v.string()),
+    presetResponse: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { userId, userMessage } = args;

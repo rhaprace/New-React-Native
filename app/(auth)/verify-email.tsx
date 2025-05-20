@@ -201,7 +201,24 @@ export default function VerifyEmail() {
           [
             {
               text: "Continue",
-              onPress: () => router.replace("/subscription/plans"),
+              onPress: () => {
+                try {
+                  router.replace("/subscription/plans");
+                } catch (error) {
+                  console.error("Navigation error after verification:", error);
+                  // Fallback navigation
+                  setTimeout(() => {
+                    try {
+                      router.push("/subscription/plans");
+                    } catch (fallbackError) {
+                      console.error(
+                        "Fallback navigation failed:",
+                        fallbackError
+                      );
+                    }
+                  }, 500);
+                }
+              },
             },
           ]
         );
@@ -259,7 +276,19 @@ export default function VerifyEmail() {
   }, [user, otp, verifyOTP, router, handleResendOTP]);
   useEffect(() => {
     if (!user) {
-      router.replace("/(auth)/login");
+      try {
+        router.replace("/(auth)/login");
+      } catch (error) {
+        console.error("Navigation error in verify-email:", error);
+        // Fallback navigation
+        setTimeout(() => {
+          try {
+            router.push("/(auth)/login");
+          } catch (fallbackError) {
+            console.error("Fallback navigation failed:", fallbackError);
+          }
+        }, 500);
+      }
       return;
     }
     if (!global.hasOTPBeenSentForUser) {

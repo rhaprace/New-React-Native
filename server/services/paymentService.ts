@@ -949,8 +949,8 @@ export const processSubscriptionRenewal = async (
 ): Promise<{ success: boolean; paymentIntentId: string; status: string }> => {
   try {
     const description = isPromo
-      ? "AtleTech Subscription - Promo Rate ₱75"
-      : "AtleTech Subscription - Regular Rate ₱200";
+      ? "AtleTech Subscription - Promo Rate ₱250"
+      : "AtleTech Subscription - Regular Rate ₱499";
 
     console.log(
       `Processing subscription renewal for customer ${customerId} with payment method ${paymentMethodId}`

@@ -241,7 +241,15 @@ export const useMealPlanner = (userId: any, user: any) => {
   }, [allMeals]);
   const toggleDayExpansion = useCallback(
     (day: string) => {
-      setExpandedDay(expandedDay === day ? null : day);
+      // Ensure consistent day formatting
+      const formattedDay = formatDay(day);
+
+      // Toggle expansion state
+      setExpandedDay(expandedDay === formattedDay ? null : formattedDay);
+
+      console.log(
+        `Toggling day expansion for: ${formattedDay}, current state: ${expandedDay === formattedDay ? "expanded" : "collapsed"}`
+      );
     },
     [expandedDay]
   );
@@ -269,8 +277,14 @@ export const useMealPlanner = (userId: any, user: any) => {
 
       // Store the day with proper capitalization to ensure consistency using the utility function
       const formattedDay = formatDay(day);
+
+      // Reset form state to prevent stale data
       setSelectedDay(formattedDay);
-      setMealType("");
+      setMealType("breakfast"); // Default to breakfast to avoid empty selection
+      setMealName("");
+      setGrams("");
+
+      // Show the modal
       setModalVisible(true);
 
       console.log(`Opening custom meal modal for day: ${formattedDay}`);

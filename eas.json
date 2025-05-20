@@ -19,12 +19,11 @@
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "your_staging_clerk_key",
         "EXPO_PUBLIC_PAYMONGO_SECRET_KEY": "your_staging_paymongo_key"
       }
-    },
-    "production": {
+    },    "production": {
       "env": {
-        "EXPO_PUBLIC_CONVEX_URL": "your_production_convex_url",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "your_production_clerk_key",
-        "EXPO_PUBLIC_PAYMONGO_SECRET_KEY": "your_production_paymongo_key"
+        "EXPO_PUBLIC_CONVEX_URL": "https://your-actual-convex-deployment-url.convex.cloud",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_your_actual_clerk_key",
+        "EXPO_PUBLIC_PAYMONGO_SECRET_KEY": "pk_live_your_actual_paymongo_key"
       }
     }
   },

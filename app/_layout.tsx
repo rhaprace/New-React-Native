@@ -5,8 +5,30 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { COLORS } from "@/constants/theme";
 import InitialLayout from "@/components/InitialLayout";
 import { View } from "react-native";
+import { useCallback, useEffect } from "react";
+import useSplashScreenFix from "@/hooks/useSplashScreenFix";
 
 export default function RootLayout() {
+  const { onAppError } = useSplashScreenFix();
+
+  // Add global error handler
+  useEffect(() => {
+    const originalErrorHandler = ErrorUtils.getGlobalHandler();
+
+    // Set a custom error handler that will hide the splash screen on fatal errors
+    ErrorUtils.setGlobalHandler((error, isFatal) => {
+      if (isFatal) {
+        console.error("Fatal error occurred:", error);
+        onAppError();
+      }
+      originalErrorHandler(error, isFatal);
+    });
+
+    return () => {
+      ErrorUtils.setGlobalHandler(originalErrorHandler);
+    };
+  }, []);
+
   return (
     <ClerkAndConvexProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>

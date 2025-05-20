@@ -72,7 +72,7 @@ const GoalBasedWeightPrediction: React.FC<GoalBasedWeightPredictionProps> = ({
   if (!prediction || !prediction.success) {
     return (
       <View style={styles.container}>
-        <Text variant="body1" color="secondary" style={styles.loadingText}>
+        <Text style={[styles.loadingText, { color: COLORS.textSecondary }]}>
           Loading prediction...
         </Text>
       </View>
@@ -110,16 +110,16 @@ const GoalBasedWeightPrediction: React.FC<GoalBasedWeightPredictionProps> = ({
   };
 
   // Get color for weight goal
-  const getGoalColor = (): "success" | "warning" | "secondary" | "primary" => {
+  const getGoalColor = () => {
     switch (weightGoal) {
       case "loss":
-        return "success";
+        return COLORS.success;
       case "gain":
-        return "warning";
+        return COLORS.warning;
       case "maintain":
-        return "secondary";
+        return COLORS.secondary;
       default:
-        return "primary";
+        return COLORS.primary;
     }
   };
 
@@ -171,7 +171,12 @@ const GoalBasedWeightPrediction: React.FC<GoalBasedWeightPredictionProps> = ({
           >
             <Text
               variant="caption"
-              color={intensity === "slow" ? "onPrimary" : "secondary"}
+              style={{
+                color:
+                  intensity === "slow"
+                    ? COLORS.textOnPrimary
+                    : COLORS.textSecondary,
+              }}
             >
               Slow
             </Text>
@@ -186,7 +191,12 @@ const GoalBasedWeightPrediction: React.FC<GoalBasedWeightPredictionProps> = ({
           >
             <Text
               variant="caption"
-              color={intensity === "moderate" ? "onPrimary" : "secondary"}
+              style={{
+                color:
+                  intensity === "moderate"
+                    ? COLORS.textOnPrimary
+                    : COLORS.textSecondary,
+              }}
             >
               Moderate
             </Text>
@@ -201,7 +211,12 @@ const GoalBasedWeightPrediction: React.FC<GoalBasedWeightPredictionProps> = ({
           >
             <Text
               variant="caption"
-              color={intensity === "fast" ? "onPrimary" : "secondary"}
+              style={{
+                color:
+                  intensity === "fast"
+                    ? COLORS.textOnPrimary
+                    : COLORS.textSecondary,
+              }}
             >
               Fast
             </Text>
@@ -229,7 +244,7 @@ const GoalBasedWeightPrediction: React.FC<GoalBasedWeightPredictionProps> = ({
           <Text variant="caption" color="secondary">
             In 90 Days
           </Text>
-          <Text variant="h4" weight="bold" color={getGoalColor()}>
+          <Text variant="h4" weight="bold" style={{ color: getGoalColor() }}>
             {targetWeight} kg
           </Text>
         </View>
@@ -240,8 +255,7 @@ const GoalBasedWeightPrediction: React.FC<GoalBasedWeightPredictionProps> = ({
           <Text
             variant="body1"
             weight="semibold"
-            color="primary"
-            style={styles.sectionTitle}
+            style={[styles.sectionTitle, { color: COLORS.primary }]}
           >
             Expected Milestones
           </Text>
@@ -260,7 +274,11 @@ const GoalBasedWeightPrediction: React.FC<GoalBasedWeightPredictionProps> = ({
                   <Text variant="body2" weight="semibold" color="primary">
                     {milestone.description}
                   </Text>
-                  <Text variant="h5" weight="bold" color={getGoalColor()}>
+                  <Text
+                    variant="h5"
+                    weight="bold"
+                    style={{ color: getGoalColor() }}
+                  >
                     {milestone.weight} kg
                   </Text>
                   <Text variant="caption" color="secondary">
@@ -281,8 +299,7 @@ const GoalBasedWeightPrediction: React.FC<GoalBasedWeightPredictionProps> = ({
           <Text
             variant="body1"
             weight="semibold"
-            color="primary"
-            style={styles.sectionTitle}
+            style={[styles.sectionTitle, { color: COLORS.primary }]}
           >
             Body Composition Changes
           </Text>
@@ -307,7 +324,11 @@ const GoalBasedWeightPrediction: React.FC<GoalBasedWeightPredictionProps> = ({
               <Text variant="caption" color="secondary">
                 Final Body Fat
               </Text>
-              <Text variant="h5" weight="bold" color={getGoalColor()}>
+              <Text
+                variant="h5"
+                weight="bold"
+                style={{ color: getGoalColor() }}
+              >
                 {bodyComposition.finalBodyFat}%
               </Text>
             </View>
@@ -390,8 +411,7 @@ const GoalBasedWeightPrediction: React.FC<GoalBasedWeightPredictionProps> = ({
         <Text
           variant="body1"
           weight="semibold"
-          color="primary"
-          style={styles.sectionTitle}
+          style={[styles.sectionTitle, { color: COLORS.primary }]}
         >
           Recommendations
         </Text>
@@ -488,7 +508,7 @@ const GoalBasedWeightPrediction: React.FC<GoalBasedWeightPredictionProps> = ({
         </View>
       </View>
 
-      <Text variant="caption" color="secondary" style={styles.disclaimer}>
+      <Text style={[styles.disclaimer, { color: COLORS.textSecondary }]}>
         These predictions are based on following the recommended diet and
         exercise plan consistently. Individual results may vary.
       </Text>

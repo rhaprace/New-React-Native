@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   TextInput,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Text,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { COLORS, RADIUS, SPACING, SLATE } from "@/constants/theme";
@@ -12,36 +13,52 @@ import { COLORS, RADIUS, SPACING, SLATE } from "@/constants/theme";
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
   isLoading: boolean;
+  isTyping?: boolean;
 }
 
-const ChatInput = ({ onSendMessage, isLoading }: ChatInputProps) => {
+const ChatInput = ({ onSendMessage, isLoading, isTyping }: ChatInputProps) => {
   const [message, setMessage] = useState("");
+  const MAX_LENGTH = 500;
 
-  const handleSend = () => {
-    if (message.trim() === "" || isLoading) return;
+  const handleSend = useCallback(() => {
+    if (message.trim() === "" || isLoading || isTyping) return;
+    if (message.length > MAX_LENGTH) return;
 
     onSendMessage(message.trim());
     setMessage("");
-  };
+  }, [message, isLoading, isTyping, onSendMessage]);
+
+  const charactersLeft = MAX_LENGTH - message.length;
+  const isOverLimit = charactersLeft < 0;
 
   return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.input}
-        placeholder="Type a message..."
-        value={message}
-        onChangeText={setMessage}
-        multiline
-        maxLength={500}
-        editable={!isLoading}
-      />
+      <View style={styles.inputWrapper}>
+        <TextInput
+          style={[styles.input, isOverLimit && styles.inputError]}
+          placeholder={isTyping ? "AI is typing..." : "Type a message..."}
+          value={message}
+          onChangeText={setMessage}
+          multiline
+          maxLength={MAX_LENGTH}
+          editable={!isLoading && !isTyping}
+        />
+        {message.length > 0 && (
+          <Text
+            style={[styles.charCount, isOverLimit && styles.charCountError]}
+          >
+            {charactersLeft}
+          </Text>
+        )}
+      </View>
       <TouchableOpacity
         style={[
           styles.sendButton,
-          (message.trim() === "" || isLoading) && styles.disabledButton,
+          (message.trim() === "" || isLoading || isTyping || isOverLimit) &&
+            styles.disabledButton,
         ]}
         onPress={handleSend}
-        disabled={message.trim() === "" || isLoading}
+        disabled={message.trim() === "" || isLoading || isTyping || isOverLimit}
       >
         {isLoading ? (
           <ActivityIndicator size="small" color={COLORS.textOnPrimary} />
@@ -61,12 +78,15 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: SLATE.slate_200,
     backgroundColor: COLORS.surface,
-    // Add elevation to make it appear above content when keyboard is shown
     elevation: 3,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
+  },
+  inputWrapper: {
+    flex: 1,
+    position: "relative",
   },
   input: {
     flex: 1,
@@ -77,9 +97,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: SLATE.slate_800,
   },
+  inputError: {
+    borderColor: COLORS.error,
+    borderWidth: 1,
+  },
+  charCount: {
+    position: "absolute",
+    right: 8,
+    bottom: 8,
+    fontSize: 12,
+    color: SLATE.slate_400,
+  },
+  charCountError: {
+    color: COLORS.error,
+  },
   sendButton: {
     backgroundColor: COLORS.primary,
-    borderRadius: RADIUS.full,
+    borderRadius: RADIUS.round,
     width: 40,
     height: 40,
     justifyContent: "center",

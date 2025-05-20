@@ -1,8 +1,9 @@
 import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, TouchableOpacity } from "react-native";
 import { styles } from "@/styles/workout.styles";
 import { COLORS } from "@/constants/theme";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Text } from "@/components/ui";
 
 interface WeightGoalSelectorProps {
   weightGoal: "loss" | "gain" | "maintain";

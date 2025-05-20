@@ -1,14 +1,21 @@
-import { useState, useEffect, useRef } from 'react';
-import { Alert, Platform, Linking } from 'react-native';
-import { Pedometer, Accelerometer } from 'expo-sensors';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
+import { useState, useEffect, useRef } from "react";
+import { Alert, Platform } from "react-native";
+import { Pedometer, Accelerometer } from "expo-sensors";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
+import {
+  requestPermission,
+  checkActivityPermission,
+  openAppSettings,
+  isExpoGo,
+  getAndroidVersion,
+} from "@/utils/permissionUtils";
 
-const STORAGE_KEY = 'atle_step_data';
+const STORAGE_KEY = "atle_step_data";
 
 // Anti-cheating and step detection constants
 const MAX_STEPS_PER_MINUTE = 180; // Maximum realistic steps per minute (3 steps/second)
-const MAX_STEPS_PER_UPDATE = 20;  // Maximum steps allowed in a single update
+const MAX_STEPS_PER_UPDATE = 20; // Maximum steps allowed in a single update
 const STEP_THRESHOLD = 1.0; // Threshold for detecting a step (in G-force) - reduced for better sensitivity
 const STEP_DELAY = 200; // Minimum time between steps (in ms) - reduced for faster detection
 const SAMPLING_RATE = 20; // Accelerometer sampling rate (in ms) - reduced for more frequent updates
@@ -21,7 +28,7 @@ interface StepData {
 
 interface StepCounterResult {
   isAvailable: boolean;
-  permissionStatus: 'unknown' | 'granted' | 'denied';
+  permissionStatus: "unknown" | "granted" | "denied";
   currentSteps: number;
   todaySteps: number;
   goalSteps: number;
@@ -39,15 +46,21 @@ interface StepCounterResult {
   stopStepSimulation: () => void;
 }
 
-export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult => {
+export const useStepCounter = (
+  defaultGoal: number = 10000
+): StepCounterResult => {
   const [isAvailable, setIsAvailable] = useState<boolean>(true); // Set to true by default
-  const [permissionStatus, setPermissionStatus] = useState<'unknown' | 'granted' | 'denied'>('unknown');
+  const [permissionStatus, setPermissionStatus] = useState<
+    "unknown" | "granted" | "denied"
+  >("unknown");
   const [currentSteps, setCurrentSteps] = useState<number>(0);
   const [todaySteps, setTodaySteps] = useState<number>(0);
   const [goalSteps, setGoalSteps] = useState<number>(defaultGoal);
   const [historyData, setHistoryData] = useState<StepData[]>([]);
   const [canAskAgain, setCanAskAgain] = useState<boolean>(true);
-  const [simulationInterval, setSimulationInterval] = useState<NodeJS.Timeout | null>(null);
+  const [simulationInterval, setSimulationInterval] = useState<ReturnType<
+    typeof setInterval
+  > | null>(null);
 
   // Anti-cheating state
   const lastUpdateTimeRef = useRef<number>(Date.now());
@@ -57,18 +70,21 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
   // Step detection state for accelerometer
   const accelerometerSubscription = useRef<{ remove: () => void } | null>(null);
   const lastStepTime = useRef<number>(0);
-  const lastAcceleration = useRef<{ x: number, y: number, z: number }>({ x: 0, y: 0, z: 0 });
+  const lastAcceleration = useRef<{ x: number; y: number; z: number }>({
+    x: 0,
+    y: 0,
+    z: 0,
+  });
   const accelerationMagnitude = useRef<number[]>([]);
   const isStepDetectionActive = useRef<boolean>(false);
   const useAccelerometer = useRef<boolean>(true); // Flag to use accelerometer instead of pedometer
 
-  // Check if running in Expo Go (using a safer approach to avoid deprecated property)
-  const isExpoGo = Constants.executionEnvironment === 'storeClient' ? false : true;
+  // isExpoGo is now imported from permissionUtils
 
   // Get today's date in YYYY-MM-DD format
   const getTodayString = (): string => {
     const today = new Date();
-    return today.toISOString().split('T')[0];
+    return today.toISOString().split("T")[0];
   };
 
   // Advanced motion pattern analysis and anti-cheating detection
@@ -87,13 +103,17 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
     // Check 1: Rate limiting - too many steps too quickly
     const stepsPerMinute = (stepIncrement / timeSinceLastUpdate) * 60000;
     if (stepsPerMinute > MAX_STEPS_PER_MINUTE) {
-      console.log(`Suspicious activity detected: ${stepsPerMinute.toFixed(1)} steps/min exceeds limit of ${MAX_STEPS_PER_MINUTE}`);
+      console.log(
+        `Suspicious activity detected: ${stepsPerMinute.toFixed(1)} steps/min exceeds limit of ${MAX_STEPS_PER_MINUTE}`
+      );
       return true;
     }
 
     // Check 2: Sudden large increment
     if (stepIncrement > MAX_STEPS_PER_UPDATE) {
-      console.log(`Suspicious activity detected: Increment of ${stepIncrement} steps exceeds limit of ${MAX_STEPS_PER_UPDATE}`);
+      console.log(
+        `Suspicious activity detected: Increment of ${stepIncrement} steps exceeds limit of ${MAX_STEPS_PER_UPDATE}`
+      );
       return true;
     }
 
@@ -101,8 +121,8 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
     if (recentIncrements.length >= 5) {
       // 3a: Check for too regular patterns (like device shaking)
       const firstValue = recentIncrements[0];
-      const allSimilar = recentIncrements.every(val =>
-        Math.abs(val - firstValue) <= 2
+      const allSimilar = recentIncrements.every(
+        (val) => Math.abs(val - firstValue) <= 2
       );
 
       if (allSimilar) {
@@ -113,7 +133,7 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
       // 3b: Check for alternating patterns (like device rocking)
       let alternatingPattern = true;
       for (let i = 2; i < recentIncrements.length; i++) {
-        if (Math.abs(recentIncrements[i] - recentIncrements[i-2]) > 3) {
+        if (Math.abs(recentIncrements[i] - recentIncrements[i - 2]) > 3) {
           alternatingPattern = false;
           break;
         }
@@ -130,15 +150,21 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
       const sum = recentIncrements.reduce((acc, val) => acc + val, 0);
       const mean = sum / recentIncrements.length;
 
-      const squaredDiffs = recentIncrements.map(val => Math.pow(val - mean, 2));
-      const variance = squaredDiffs.reduce((acc, val) => acc + val, 0) / recentIncrements.length;
+      const squaredDiffs = recentIncrements.map((val) =>
+        Math.pow(val - mean, 2)
+      );
+      const variance =
+        squaredDiffs.reduce((acc, val) => acc + val, 0) /
+        recentIncrements.length;
       const stdDev = Math.sqrt(variance);
 
       // Coefficient of variation (CV) - natural walking typically has CV between 0.1 and 0.3
       const cv = mean > 0 ? stdDev / mean : 0;
 
       if (cv < 0.05 || cv > 0.5) {
-        console.log(`Suspicious activity detected: Unnatural variation in step pattern (CV=${cv.toFixed(2)})`);
+        console.log(
+          `Suspicious activity detected: Unnatural variation in step pattern (CV=${cv.toFixed(2)})`
+        );
         return true;
       }
     }
@@ -156,25 +182,30 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
 
         // Find today's data
         const todayString = getTodayString();
-        const todayData = parsedData.find(item => item.date === todayString);
+        const todayData = parsedData.find((item) => item.date === todayString);
 
         if (todayData) {
           setTodaySteps(todayData.steps);
           setGoalSteps(todayData.goal);
         } else {
           // Create today's entry if it doesn't exist
-          const newData = [...parsedData, { date: todayString, steps: 0, goal: goalSteps }];
+          const newData = [
+            ...parsedData,
+            { date: todayString, steps: 0, goal: goalSteps },
+          ];
           setHistoryData(newData);
           saveStepData(newData);
         }
       } else {
         // Initialize with today's entry
-        const initialData = [{ date: getTodayString(), steps: 0, goal: goalSteps }];
+        const initialData = [
+          { date: getTodayString(), steps: 0, goal: goalSteps },
+        ];
         setHistoryData(initialData);
         saveStepData(initialData);
       }
     } catch (error) {
-      console.error('Error loading step data:', error);
+      console.error("Error loading step data:", error);
     }
   };
 
@@ -183,17 +214,15 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (error) {
-      console.error('Error saving step data:', error);
+      console.error("Error saving step data:", error);
     }
   };
 
   // Update today's step count
   const updateTodaySteps = (steps: number) => {
     const todayString = getTodayString();
-    const updatedHistory = historyData.map(item =>
-      item.date === todayString
-        ? { ...item, steps: steps }
-        : item
+    const updatedHistory = historyData.map((item) =>
+      item.date === todayString ? { ...item, steps: steps } : item
     );
 
     setTodaySteps(steps);
@@ -204,10 +233,8 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
   // Set goal steps
   const handleSetGoalSteps = (goal: number) => {
     const todayString = getTodayString();
-    const updatedHistory = historyData.map(item =>
-      item.date === todayString
-        ? { ...item, goal: goal }
-        : item
+    const updatedHistory = historyData.map((item) =>
+      item.date === todayString ? { ...item, goal: goal } : item
     );
 
     setGoalSteps(goal);
@@ -228,34 +255,38 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
   };
 
   // Step detection algorithm using accelerometer data - optimized for responsiveness
-  const detectStep = (acceleration: { x: number, y: number, z: number }) => {
+  const detectStep = (acceleration: { x: number; y: number; z: number }) => {
     const now = Date.now();
 
     // Calculate the magnitude of acceleration (total G-force)
     const magnitude = Math.sqrt(
       Math.pow(acceleration.x, 2) +
-      Math.pow(acceleration.y, 2) +
-      Math.pow(acceleration.z, 2)
+        Math.pow(acceleration.y, 2) +
+        Math.pow(acceleration.z, 2)
     );
 
     // Store the magnitude for pattern detection - using a smaller buffer for faster response
     accelerationMagnitude.current.push(magnitude);
-    if (accelerationMagnitude.current.length > 10) { // Reduced from 20 to 10
+    if (accelerationMagnitude.current.length > 10) {
+      // Reduced from 20 to 10
       accelerationMagnitude.current.shift();
     }
 
     // Calculate the change in acceleration
-    const delta = Math.abs(magnitude - Math.sqrt(
-      Math.pow(lastAcceleration.current.x, 2) +
-      Math.pow(lastAcceleration.current.y, 2) +
-      Math.pow(lastAcceleration.current.z, 2)
-    ));
+    const delta = Math.abs(
+      magnitude -
+        Math.sqrt(
+          Math.pow(lastAcceleration.current.x, 2) +
+            Math.pow(lastAcceleration.current.y, 2) +
+            Math.pow(lastAcceleration.current.z, 2)
+        )
+    );
 
     // Update last acceleration
     lastAcceleration.current = acceleration;
 
     // Check if this is a step (significant acceleration change and enough time has passed)
-    if (delta > STEP_THRESHOLD && (now - lastStepTime.current) > STEP_DELAY) {
+    if (delta > STEP_THRESHOLD && now - lastStepTime.current > STEP_DELAY) {
       // Verify this is a walking pattern by checking for rhythmic movement
       // Only perform pattern check if we have enough data, otherwise just count the step
       if (accelerationMagnitude.current.length < 5 || isWalkingPattern()) {
@@ -267,7 +298,9 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
         updateTodaySteps(newSteps);
 
         // Log step detection for debugging
-        console.log(`Step detected! Delta: ${delta.toFixed(2)}, Time since last: ${(now - lastStepTime.current)}ms`);
+        console.log(
+          `Step detected! Delta: ${delta.toFixed(2)}, Time since last: ${now - lastStepTime.current}ms`
+        );
 
         return true;
       }
@@ -285,8 +318,12 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
     const sum = accelerationMagnitude.current.reduce((a, b) => a + b, 0);
     const avg = sum / accelerationMagnitude.current.length;
 
-    const squaredDiffs = accelerationMagnitude.current.map(val => Math.pow(val - avg, 2));
-    const variance = squaredDiffs.reduce((a, b) => a + b, 0) / accelerationMagnitude.current.length;
+    const squaredDiffs = accelerationMagnitude.current.map((val) =>
+      Math.pow(val - avg, 2)
+    );
+    const variance =
+      squaredDiffs.reduce((a, b) => a + b, 0) /
+      accelerationMagnitude.current.length;
     const stdDev = Math.sqrt(variance);
 
     // Walking typically has a moderate standard deviation
@@ -318,12 +355,14 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
       lastAcceleration.current = { x: 0, y: 0, z: 0 };
 
       // Set up accelerometer with faster update interval
-      console.log(`Setting accelerometer update interval to ${SAMPLING_RATE}ms`);
+      console.log(
+        `Setting accelerometer update interval to ${SAMPLING_RATE}ms`
+      );
       Accelerometer.setUpdateInterval(SAMPLING_RATE);
 
       // Subscribe to accelerometer updates with improved error handling
       console.log("Subscribing to accelerometer updates...");
-      const subscription = Accelerometer.addListener(acceleration => {
+      const subscription = Accelerometer.addListener((acceleration) => {
         try {
           detectStep(acceleration);
         } catch (error) {
@@ -392,14 +431,7 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
     }
   };
 
-  // Function to open app settings
-  const openAppSettings = () => {
-    if (Platform.OS === 'ios') {
-      Linking.openURL('app-settings:');
-    } else {
-      Linking.openSettings();
-    }
-  };
+  // Function to open app settings is now imported from permissionUtils
 
   // Function to start step simulation
   const startStepSimulation = () => {
@@ -409,10 +441,12 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
     // Create a new simulation interval
     const interval = setInterval(() => {
       const stepIncrement = Math.floor(Math.random() * 20) + 10; // 10-30 steps
-      setCurrentSteps(prev => {
+      setCurrentSteps((prev) => {
         const newSteps = prev + stepIncrement;
         updateTodaySteps(newSteps);
-        console.log(`Added ${stepIncrement} simulated steps. Total: ${newSteps}`);
+        console.log(
+          `Added ${stepIncrement} simulated steps. Total: ${newSteps}`
+        );
         return newSteps;
       });
     }, 5000); // Every 5 seconds
@@ -420,12 +454,12 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
     setSimulationInterval(interval);
 
     // Set permission status to granted for UI purposes
-    setPermissionStatus('granted');
+    setPermissionStatus("granted");
 
     // Show a message that simulation has started
     Alert.alert(
-      'Simulation Started',
-      'Step simulation is now running. Steps will be added automatically every few seconds.'
+      "Simulation Started",
+      "Step simulation is now running. Steps will be added automatically every few seconds."
     );
   };
 
@@ -434,275 +468,108 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
     if (simulationInterval) {
       clearInterval(simulationInterval);
       setSimulationInterval(null);
-      console.log('Step simulation stopped');
+      console.log("Step simulation stopped");
     }
   };
 
-  // Get Android version
-  const getAndroidVersion = (): number => {
-    if (Platform.OS !== 'android') return 0;
-    return parseInt(Platform.Version.toString(), 10);
-  };
+  // Get Android version is now imported from permissionUtils
 
   // Function to request permissions with enhanced handling for different Android versions
   const requestPermissions = async (): Promise<boolean> => {
-    if (Platform.OS !== 'android') {
-      // iOS may need permission for pedometer in newer iOS versions
-      try {
-        console.log("Checking iOS pedometer permissions...");
-        const iosPermResult = await Pedometer.getPermissionsAsync();
-        console.log("iOS permission result:", iosPermResult);
-
-        if (iosPermResult.granted) {
-          console.log("iOS permissions already granted");
-          setPermissionStatus('granted');
-
-          // Initialize immediately
-          const subscription = await initPedometerAfterPermission();
-          console.log("iOS pedometer initialized:", !!subscription);
-          return true;
-        }
-
-        // Request permission on iOS if needed
-        console.log("Requesting iOS pedometer permissions...");
-        const { granted } = await Pedometer.requestPermissionsAsync();
-        console.log("iOS permission request result:", granted);
-
-        setPermissionStatus(granted ? 'granted' : 'denied');
-        if (granted) {
-          const subscription = await initPedometerAfterPermission();
-          console.log("iOS pedometer initialized after request:", !!subscription);
-        } else {
-          // Show alert to explain why permissions are needed
-          Alert.alert(
-            'Step Tracking Permission',
-            'To track your steps while walking, we need access to motion sensors. Please enable this in your device settings.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Open Settings', onPress: openAppSettings }
-            ]
-          );
-        }
-        return granted;
-      } catch (error) {
-        console.error('Error checking iOS permissions:', error);
-
-        // Try to initialize anyway as a fallback
-        setPermissionStatus('granted');
-        const subscription = await initPedometerAfterPermission();
-        console.log("iOS pedometer fallback initialization:", !!subscription);
-        return true;
-      }
-    }
-
     try {
-      // First check current permission status
-      console.log("Checking current permission status...");
-      const permResult = await Pedometer.getPermissionsAsync();
-      console.log("Current permission status:", permResult);
+      console.log("Requesting activity recognition permission...");
 
-      // Get Android version for version-specific handling
-      const androidVersion = getAndroidVersion();
-      console.log("Android version:", androidVersion);
+      // Use our centralized permission utility
+      const granted = await requestPermission("activity", {
+        title: "Step Tracking Permission",
+        message:
+          "To count your steps while walking, AtleTech needs access to physical activity. This helps track your fitness progress accurately.",
+        onGranted: async () => {
+          console.log("Permission granted, initializing step tracking");
+          setPermissionStatus("granted");
 
-      // Update canAskAgain state
-      setCanAskAgain(permResult.canAskAgain);
+          // Try accelerometer first if enabled
+          if (useAccelerometer.current) {
+            console.log("Trying accelerometer-based step tracking first...");
+            const accelSub = await startStepDetection();
+            if (accelSub) {
+              console.log(
+                "Accelerometer-based step tracking initialized successfully"
+              );
+            } else {
+              console.log(
+                "Accelerometer initialization failed, falling back to pedometer"
+              );
+              useAccelerometer.current = false;
 
-      if (permResult.granted) {
-        console.log("Permission already granted");
-        setPermissionStatus('granted');
-        initPedometerAfterPermission();
-        return true;
-      }
-
-      // Version-specific handling for Android 10+ (API level 29+)
-      // Android 10+ has different permission behavior for physical activity
-      if (androidVersion >= 29) {
-        console.log("Using Android 10+ (API 29+) permission flow");
-
-        // On newer Android versions, we need to be more explicit about permissions
-        if (!permResult.canAskAgain && permResult.status === 'denied') {
-          console.log("Permission permanently denied on Android 10+, directing to settings");
-          setPermissionStatus('denied');
-
-          Alert.alert(
-            'Physical Activity Permission Required',
-            'To track your steps, AtleTech needs the Physical Activity permission. Please enable it in app settings under Permissions.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Open Settings',
-                onPress: () => {
-                  // For Android 10+, we'll try to open the specific permission settings
-                  try {
-                    // Try to open app-specific permission settings first
-                    Linking.openSettings();
-                  } catch (error) {
-                    console.error("Error opening settings:", error);
-                    // Fallback to general settings
-                    openAppSettings();
-                  }
-                }
-              }
-            ]
-          );
-          return false;
-        }
-      } else {
-        // Handling for older Android versions
-        console.log("Using Android 9 or below permission flow");
-
-        // If we can't ask again and permission is denied, we need to direct user to settings
-        if (!permResult.canAskAgain && permResult.status === 'denied') {
-          console.log("Permission permanently denied, need to go to settings");
-          setPermissionStatus('denied');
-
-          // If in Expo Go, offer simulation mode
-          if (isExpoGo) {
-            Alert.alert(
-              'Permission Required',
-              'Step tracking requires permission that has been denied. In Expo Go, you can use simulated data instead.',
-              [
-                {
-                  text: 'Use Simulated Data',
-                  onPress: () => {
-                    startStepSimulation();
-                  }
-                },
-                {
-                  text: 'Try Settings',
-                  onPress: openAppSettings
-                }
-              ]
-            );
-            return false;
-          } else {
-            // In standalone app, direct to settings
-            Alert.alert(
-              'Permission Required',
-              'Step tracking requires permission that has been denied. Please enable it in app settings.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Open Settings', onPress: openAppSettings }
-              ]
-            );
-            return false;
-          }
-        }
-      }
-
-      // Request permission if not already granted and we can still ask
-      console.log("Requesting Android permissions...");
-
-      try {
-        // Request the permission with a clear explanation
-        Alert.alert(
-          'Step Tracking Permission',
-          'To count your steps while walking, AtleTech needs access to physical activity. This helps track your fitness progress accurately.',
-          [
-            {
-              text: 'Cancel',
-              style: 'cancel',
-              onPress: () => {
-                console.log("User cancelled permission request");
-                setPermissionStatus('denied');
-              }
-            },
-            {
-              text: 'Allow',
-              onPress: async () => {
-                console.log("User agreed to permission request, requesting system permission");
-                const { granted } = await Pedometer.requestPermissionsAsync();
-                console.log("System permission result:", granted);
-
-                // Check permission status again after request
-                const newPermResult = await Pedometer.getPermissionsAsync();
-                setCanAskAgain(newPermResult.canAskAgain);
-
-                if (granted) {
-                  console.log("Permission granted, initializing step tracking");
-                  setPermissionStatus('granted');
-
-                  // Try accelerometer first if enabled
-                  if (useAccelerometer.current) {
-                    console.log("Trying accelerometer-based step tracking first...");
-                    const accelSub = await startStepDetection();
-                    if (accelSub) {
-                      console.log("Accelerometer-based step tracking initialized successfully");
-                      return;
-                    } else {
-                      console.log("Accelerometer initialization failed, falling back to pedometer");
-                      useAccelerometer.current = false;
-                    }
-                  }
-
-                  // Fall back to pedometer
-                  const subscription = await initPedometerAfterPermission();
-                  console.log("Pedometer initialized:", !!subscription);
-                } else {
-                  console.log("Permission denied by system");
-                  setPermissionStatus('denied');
-
-                  // Show a message explaining the impact of the denial
-                  Alert.alert(
-                    'Permission Denied',
-                    'Without physical activity permission, we cannot track your steps. This will limit the app\'s ability to track your fitness progress.',
-                    [
-                      { text: 'OK', style: 'cancel' },
-                      { text: 'Open Settings', onPress: openAppSettings }
-                    ]
-                  );
-                }
-              }
+              // Fall back to pedometer
+              const subscription = await initPedometerAfterPermission();
+              console.log("Pedometer initialized:", !!subscription);
             }
-          ],
-          { cancelable: false }
-        );
+          } else {
+            // Use pedometer directly
+            const subscription = await initPedometerAfterPermission();
+            console.log("Pedometer initialized:", !!subscription);
+          }
+        },
+        onDenied: () => {
+          console.log("Permission denied");
+          setPermissionStatus("denied");
 
-        // Return true to indicate we've handled the permission request
-        // The actual permission will be processed in the alert callbacks
-        return true;
-      } catch (permError) {
-        console.error("Error in permission request:", permError);
-        setPermissionStatus('denied');
+          // Check if we can ask again
+          checkActivityPermission().then((result) => {
+            setCanAskAgain(result.canAskAgain);
 
-        // Special handling for Expo Go
-        if (isExpoGo) {
-          console.log("Error in Expo Go, offering simulation mode");
-          Alert.alert(
-            'Expo Go Limitation',
-            'There was an error requesting step tracking permissions in Expo Go. Would you like to use simulated step data instead?',
-            [
-              { text: 'No, Thanks', style: 'cancel' },
-              {
-                text: 'Use Simulated Data',
-                onPress: () => {
-                  startStepSimulation();
-                }
-              }
-            ]
-          );
-        }
+            // If in Expo Go and permission denied, offer simulation
+            if (isExpoGo) {
+              Alert.alert(
+                "Expo Go Limitation",
+                "Step tracking requires permissions that may not work properly in Expo Go. Would you like to use simulated step data instead?",
+                [
+                  { text: "No, Thanks", style: "cancel" },
+                  {
+                    text: "Use Simulated Data",
+                    onPress: () => {
+                      startStepSimulation();
+                    },
+                  },
+                ]
+              );
+            } else if (!result.canAskAgain) {
+              // If we can't ask again, direct to settings
+              Alert.alert(
+                "Permission Required",
+                "Step tracking requires permission that has been denied. Please enable it in app settings.",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Open Settings", onPress: openAppSettings },
+                ]
+              );
+            }
+          });
+        },
+      });
 
-        return false;
-      }
+      // Update permission status based on result
+      setPermissionStatus(granted ? "granted" : "denied");
+      return granted;
     } catch (error) {
-      console.error("Error in main permission flow:", error);
-      setPermissionStatus('denied');
+      console.error("Error in permission request:", error);
+      setPermissionStatus("denied");
 
       // Special handling for Expo Go
       if (isExpoGo) {
         Alert.alert(
-          'Expo Go Limitation',
-          'Step tracking requires permissions that may not work properly in Expo Go. Would you like to use simulated step data instead?',
+          "Expo Go Limitation",
+          "There was an error requesting step tracking permissions. Would you like to use simulated step data instead?",
           [
-            { text: 'No, Thanks', style: 'cancel' },
+            { text: "No, Thanks", style: "cancel" },
             {
-              text: 'Use Simulated Data',
+              text: "Use Simulated Data",
               onPress: () => {
                 startStepSimulation();
-              }
-            }
+              },
+            },
           ]
         );
       }
@@ -713,30 +580,22 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
 
   // Check for battery optimization (Android only)
   const checkBatteryOptimization = () => {
-    if (Platform.OS !== 'android') return;
+    if (Platform.OS !== "android") return;
 
-    const androidVersion = getAndroidVersion();
     // Battery optimization settings are most relevant on Android 6.0 (API 23) and higher
-    if (androidVersion >= 23) {
+    if (getAndroidVersion() >= 23) {
       try {
         // We can't directly check battery optimization status, but we can inform the user
         setTimeout(() => {
           Alert.alert(
-            'Battery Optimization',
-            'For accurate step tracking, please ensure AtleTech is not battery optimized. Would you like to check your battery settings?',
+            "Battery Optimization",
+            "For accurate step tracking, please ensure AtleTech is not battery optimized. Would you like to check your battery settings?",
             [
-              { text: 'Later', style: 'cancel' },
+              { text: "Later", style: "cancel" },
               {
-                text: 'Check Settings',
-                onPress: () => {
-                  try {
-                    // Try to open battery optimization settings
-                    Linking.openSettings();
-                  } catch (error) {
-                    console.error("Error opening settings:", error);
-                  }
-                }
-              }
+                text: "Check Settings",
+                onPress: openAppSettings,
+              },
             ]
           );
         }, 3000); // Show after a delay to not overwhelm the user with alerts
@@ -749,32 +608,43 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
   // Handle device-specific sensor issues
   const handleDeviceSpecificIssues = () => {
     // Some devices have specific sensor issues or require special handling
-    const manufacturer = Platform.OS === 'android' ? (Platform as any).constants?.manufacturer?.toLowerCase() : '';
+    const manufacturer =
+      Platform.OS === "android"
+        ? (Platform as any).constants?.manufacturer?.toLowerCase()
+        : "";
 
     if (manufacturer) {
       console.log("Device manufacturer:", manufacturer);
 
       // Special handling for known problematic devices
-      if (manufacturer.includes('xiaomi') || manufacturer.includes('redmi') || manufacturer.includes('poco')) {
-        console.log("Xiaomi/Redmi/Poco device detected - these may require special permission handling");
+      if (
+        manufacturer.includes("xiaomi") ||
+        manufacturer.includes("redmi") ||
+        manufacturer.includes("poco")
+      ) {
+        console.log(
+          "Xiaomi/Redmi/Poco device detected - these may require special permission handling"
+        );
         // Xiaomi devices often have aggressive battery optimization and permission restrictions
         setTimeout(() => {
           Alert.alert(
-            'Device-Specific Notice',
-            'Your device may require additional settings for step tracking. Please ensure AtleTech has all required permissions and is not restricted by battery optimization.',
-            [{ text: 'OK' }]
+            "Device-Specific Notice",
+            "Your device may require additional settings for step tracking. Please ensure AtleTech has all required permissions and is not restricted by battery optimization.",
+            [{ text: "OK" }]
           );
         }, 5000);
       }
 
-      if (manufacturer.includes('huawei') || manufacturer.includes('honor')) {
-        console.log("Huawei/Honor device detected - these may have sensor access restrictions");
+      if (manufacturer.includes("huawei") || manufacturer.includes("honor")) {
+        console.log(
+          "Huawei/Honor device detected - these may have sensor access restrictions"
+        );
         // Huawei devices often restrict background sensor access
         setTimeout(() => {
           Alert.alert(
-            'Device-Specific Notice',
-            'Your device may restrict sensor access. Please add AtleTech to protected apps in battery settings and ensure it has permission to run in the background.',
-            [{ text: 'OK' }]
+            "Device-Specific Notice",
+            "Your device may restrict sensor access. Please add AtleTech to protected apps in battery settings and ensure it has permission to run in the background.",
+            [{ text: "OK" }]
           );
         }, 5000);
       }
@@ -799,8 +669,16 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
       start.setHours(0, 0, 0, 0); // Start of today
 
       try {
-        console.log("Time range:", start.toISOString(), "to", end.toISOString());
-        const pastStepCountResult = await Pedometer.getStepCountAsync(start, end);
+        console.log(
+          "Time range:",
+          start.toISOString(),
+          "to",
+          end.toISOString()
+        );
+        const pastStepCountResult = await Pedometer.getStepCountAsync(
+          start,
+          end
+        );
         console.log("Past step count result:", pastStepCountResult);
 
         // Always start with at least 1 step to ensure the counter is initialized
@@ -811,12 +689,15 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
           initialSteps = pastStepCountResult.steps;
           console.log("Initial steps from device:", initialSteps);
         } else {
-          console.log("No step count result or zero steps, using default value:", initialSteps);
+          console.log(
+            "No step count result or zero steps, using default value:",
+            initialSteps
+          );
         }
 
         // Check if we have saved steps for today that are higher
         const todayString = getTodayString();
-        const todayData = historyData.find(item => item.date === todayString);
+        const todayData = historyData.find((item) => item.date === todayString);
         if (todayData && todayData.steps > initialSteps) {
           initialSteps = todayData.steps;
           console.log("Using saved steps from today:", initialSteps);
@@ -852,7 +733,7 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
         }
 
         // Set up the real-time step counter subscription with simplified logic and fallback mechanism
-        const subscription = Pedometer.watchStepCount(result => {
+        const subscription = Pedometer.watchStepCount((result) => {
           console.log("New step count update:", result);
 
           // Simplified approach to update steps
@@ -868,11 +749,14 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
           // If we haven't received updates for more than 2 minutes and the user is likely walking,
           // we'll add a small increment to ensure steps are still being counted
           const timeSinceLastUpdate = now - lastUpdate;
-          if (timeSinceLastUpdate > 120000 && currentSteps > 0) { // 2 minutes
-            console.log("No step updates for 2 minutes, applying fallback increment");
+          if (timeSinceLastUpdate > 120000 && currentSteps > 0) {
+            // 2 minutes
+            console.log(
+              "No step updates for 2 minutes, applying fallback increment"
+            );
             // Add a small increment (5-10 steps) as a fallback
             const fallbackIncrement = Math.floor(Math.random() * 6) + 5;
-            setCurrentSteps(prevSteps => {
+            setCurrentSteps((prevSteps) => {
               const updatedSteps = prevSteps + fallbackIncrement;
               updateTodaySteps(updatedSteps);
               return updatedSteps;
@@ -881,7 +765,7 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
 
           // Advanced step detection algorithm
           // This uses a more sophisticated approach to detect and count steps accurately
-          setCurrentSteps(prevSteps => {
+          setCurrentSteps((prevSteps) => {
             // Store the current timestamp for step cadence calculation
             const timestamp = Date.now();
 
@@ -910,13 +794,17 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
 
               if (recentIncrements.length >= 3) {
                 // Calculate average of recent increments
-                const recentAvg = recentIncrements.reduce((sum, val) => sum + val, 0) / recentIncrements.length;
+                const recentAvg =
+                  recentIncrements.reduce((sum, val) => sum + val, 0) /
+                  recentIncrements.length;
 
                 // If this reading is drastically different from recent average, apply smoothing
                 if (rawIncrement > recentAvg * 3) {
                   // Suspicious spike - apply smoothing
                   stepIncrement = Math.ceil(recentAvg * 1.5);
-                  console.log(`Smoothing applied: raw=${rawIncrement}, smoothed=${stepIncrement}`);
+                  console.log(
+                    `Smoothing applied: raw=${rawIncrement}, smoothed=${stepIncrement}`
+                  );
                 } else {
                   // Normal reading - use raw value
                   stepIncrement = rawIncrement;
@@ -941,9 +829,12 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
                 const stepsPerSecond = (stepIncrement * 1000) / timeDiff;
 
                 // If cadence is unrealistically high, adjust it down
-                if (stepsPerSecond > 3.5) { // Faster than sprinting
+                if (stepsPerSecond > 3.5) {
+                  // Faster than sprinting
                   const adjustedIncrement = Math.ceil((3.5 * timeDiff) / 1000);
-                  console.log(`Cadence too high (${stepsPerSecond.toFixed(1)} steps/sec), adjusted from ${stepIncrement} to ${adjustedIncrement}`);
+                  console.log(
+                    `Cadence too high (${stepsPerSecond.toFixed(1)} steps/sec), adjusted from ${stepIncrement} to ${adjustedIncrement}`
+                  );
                   stepIncrement = adjustedIncrement;
                 }
               }
@@ -961,15 +852,17 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
                   // Show a gentle warning to the user
                   setTimeout(() => {
                     Alert.alert(
-                      'Step Tracking Notice',
-                      'We detected unusual motion patterns. For accurate fitness tracking, please carry your device naturally while walking.',
-                      [{ text: 'OK', style: 'default' }]
+                      "Step Tracking Notice",
+                      "We detected unusual motion patterns. For accurate fitness tracking, please carry your device naturally while walking.",
+                      [{ text: "OK", style: "default" }]
                     );
                   }, 500);
                 }
 
                 // Don't count suspicious steps
-                console.log(`Suspicious activity detected - not counting ${stepIncrement} steps`);
+                console.log(
+                  `Suspicious activity detected - not counting ${stepIncrement} steps`
+                );
                 return prevSteps;
               }
             }
@@ -990,7 +883,9 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
             // Update the step count if we have a valid increment
             if (stepIncrement > 0) {
               const updatedSteps = prevSteps + stepIncrement;
-              console.log(`Incrementing steps by ${stepIncrement}. New total: ${updatedSteps}`);
+              console.log(
+                `Incrementing steps by ${stepIncrement}. New total: ${updatedSteps}`
+              );
               updateTodaySteps(updatedSteps);
               return updatedSteps;
             }
@@ -1002,7 +897,10 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
         console.log("Step counter subscription set up successfully");
         return subscription;
       } catch (subscriptionError) {
-        console.error("Error setting up step counter subscription:", subscriptionError);
+        console.error(
+          "Error setting up step counter subscription:",
+          subscriptionError
+        );
         // Set mock steps for testing only if we don't have any steps yet
         if (currentSteps === 0) {
           const mockSteps = 75;
@@ -1045,7 +943,7 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
 
           if (permResult.granted) {
             console.log("Permission already granted on init");
-            setPermissionStatus('granted');
+            setPermissionStatus("granted");
 
             // Initialize the pedometer with a slight delay to ensure everything is ready
             setTimeout(async () => {
@@ -1056,16 +954,22 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
                 } else if (retryCount < MAX_RETRIES) {
                   // If initialization failed but we haven't exceeded max retries
                   retryCount++;
-                  console.log(`Pedometer initialization failed, retrying (${retryCount}/${MAX_RETRIES})...`);
+                  console.log(
+                    `Pedometer initialization failed, retrying (${retryCount}/${MAX_RETRIES})...`
+                  );
 
                   // Wait a bit longer before retrying
                   setTimeout(async () => {
                     const retrySub = await initPedometerAfterPermission();
                     if (retrySub) {
                       subscription = retrySub;
-                      console.log("Pedometer initialization succeeded on retry");
+                      console.log(
+                        "Pedometer initialization succeeded on retry"
+                      );
                     } else {
-                      console.log("Pedometer initialization failed after retries");
+                      console.log(
+                        "Pedometer initialization failed after retries"
+                      );
                     }
                   }, 2000 * retryCount); // Increasing delay for each retry
                 }
@@ -1074,30 +978,36 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
                 // Try to recover with a fallback
                 if (retryCount < MAX_RETRIES) {
                   retryCount++;
-                  console.log(`Error during initialization, retrying (${retryCount}/${MAX_RETRIES})...`);
+                  console.log(
+                    `Error during initialization, retrying (${retryCount}/${MAX_RETRIES})...`
+                  );
                   setTimeout(() => initPedometer(), 3000);
                 }
               }
             }, 500);
           } else {
-            console.log("Permission not granted yet, waiting for user to request");
-            setPermissionStatus(permResult.status === 'denied' ? 'denied' : 'unknown');
+            console.log(
+              "Permission not granted yet, waiting for user to request"
+            );
+            setPermissionStatus(
+              permResult.status === "denied" ? "denied" : "unknown"
+            );
 
             // Show a permission prompt after a short delay
             setTimeout(() => {
-              if (Platform.OS === 'android') {
+              if (Platform.OS === "android") {
                 Alert.alert(
-                  'Step Tracking',
-                  'To track your steps while walking, please enable physical activity permission.',
+                  "Step Tracking",
+                  "To track your steps while walking, please enable physical activity permission.",
                   [
-                    { text: 'Later', style: 'cancel' },
+                    { text: "Later", style: "cancel" },
                     {
-                      text: 'Enable Now',
+                      text: "Enable Now",
                       onPress: async () => {
                         const granted = await requestPermissions();
                         console.log("Permission request result:", granted);
-                      }
-                    }
+                      },
+                    },
                   ]
                 );
               }
@@ -1105,7 +1015,9 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
 
             // Load any existing step data from storage
             const todayString = getTodayString();
-            const todayData = historyData.find(item => item.date === todayString);
+            const todayData = historyData.find(
+              (item) => item.date === todayString
+            );
             if (todayData && todayData.steps > 0) {
               setCurrentSteps(todayData.steps);
             } else {
@@ -1117,9 +1029,9 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
         } else {
           console.log("Pedometer not available on this device");
           Alert.alert(
-            'Step Tracking Not Available',
-            'Your device does not support step counting. Some fitness tracking features may be limited.',
-            [{ text: 'OK' }]
+            "Step Tracking Not Available",
+            "Your device does not support step counting. Some fitness tracking features may be limited.",
+            [{ text: "OK" }]
           );
 
           // Start with 0 steps
@@ -1127,7 +1039,7 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
           updateTodaySteps(0);
         }
       } catch (error) {
-        console.error('Error initializing pedometer:', error);
+        console.error("Error initializing pedometer:", error);
         setIsAvailable(false);
 
         // Start with 0 steps
@@ -1145,11 +1057,15 @@ export const useStepCounter = (defaultGoal: number = 10000): StepCounterResult =
           const accelSub = await startStepDetection();
           if (accelSub) {
             subscription = accelSub;
-            setPermissionStatus('granted');
-            console.log("Successfully initialized accelerometer-based step tracking");
+            setPermissionStatus("granted");
+            console.log(
+              "Successfully initialized accelerometer-based step tracking"
+            );
             return;
           } else {
-            console.log("Failed to initialize accelerometer, falling back to pedometer");
+            console.log(
+              "Failed to initialize accelerometer, falling back to pedometer"
+            );
             useAccelerometer.current = false;
           }
         }

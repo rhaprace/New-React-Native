@@ -234,12 +234,17 @@ export default function MealScreen() {
       />
       <CustomMealModal
         visible={modalVisible}
-        selectedDay={selectedDay ? formatDay(selectedDay) : null}
+        selectedDay={selectedDay} // selectedDay is already formatted in the hook
         mealType={mealType}
         mealName={mealName}
         grams={grams}
         loading={loading}
-        onClose={() => setModalVisible(false)}
+        onClose={() => {
+          setModalVisible(false);
+          // Clear form data when closing
+          setMealName("");
+          setGrams("");
+        }}
         onChangeMealName={setMealName}
         onChangeGrams={setGrams}
         onSelectMealType={setMealType}
@@ -247,14 +252,18 @@ export default function MealScreen() {
       />
       <RecommendationModal
         visible={recommendModalVisible}
-        selectedDay={selectedDay ? formatDay(selectedDay) : null}
+        selectedDay={selectedDay} // selectedDay is already formatted in the hook
         mealType={mealType}
         selectedPlanType={selectedPlanType}
         recommendations={recommendations}
         selectedRecommendation={selectedRecommendation}
         selectedCategory={selectedCategory}
         loading={loading}
-        onClose={() => setRecommendModalVisible(false)}
+        onClose={() => {
+          setRecommendModalVisible(false);
+          // Clear recommendation data when closing
+          setMealName("");
+        }}
         onCategoryFilter={handleCategoryFilter}
         onSelectRecommendation={handleSelectRecommendation}
         onAddRecommendation={handleAddRecommendation}

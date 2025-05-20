@@ -131,8 +131,8 @@ export const sendRenewalNotifications = internalAction({
 
         // Determine amount based on promo status
         const isPromo = user.promoMonthsLeft && user.promoMonthsLeft > 0;
-        const amount = isPromo ? 7500 : 20000; // ₱75 or ₱200
-        const formattedAmount = isPromo ? "₱75" : "₱200";
+        const amount = isPromo ? 25000 : 49900; // ₱250 or ₱499
+        const formattedAmount = isPromo ? "₱250" : "₱499";
 
         // Send email notification
         if (user.email) {
@@ -220,12 +220,12 @@ export const processRenewals = internalAction({
         const isPromo = user.promoMonthsLeft
           ? user.promoMonthsLeft > 0
           : undefined;
-        const amount = isPromo ? 7500 : 20000; // ₱75 or ₱200
+        const amount = isPromo ? 25000 : 49900; // ₱250 or ₱499
 
         // Process the payment
         const description = isPromo
-          ? "AtleTech Subscription - Promo Rate ₱75"
-          : "AtleTech Subscription - Regular Rate ₱200";
+          ? "AtleTech Subscription - Promo Rate ₱250"
+          : "AtleTech Subscription - Regular Rate ₱499";
 
         const paymentResult = await ctx.runAction(
           api.payment.createPaymentIntent,

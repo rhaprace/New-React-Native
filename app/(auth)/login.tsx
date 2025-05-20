@@ -32,8 +32,22 @@ export default function Login() {
       if (setActive && createdSessionId) {
         await setActive({ session: createdSessionId });
         setTimeout(() => {
-          console.log("Login successful, manually navigating to verify-email");
-          router.replace("/(auth)/verify-email");
+          try {
+            console.log(
+              "Login successful, manually navigating to verify-email"
+            );
+            router.replace("/(auth)/verify-email");
+          } catch (navError) {
+            console.error("Navigation error after login:", navError);
+            // Fallback navigation
+            setTimeout(() => {
+              try {
+                router.push("/(auth)/verify-email");
+              } catch (fallbackError) {
+                console.error("Fallback navigation failed:", fallbackError);
+              }
+            }, 500);
+          }
         }, 1000);
       }
     } catch (error) {

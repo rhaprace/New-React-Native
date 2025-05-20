@@ -5,6 +5,7 @@ export const commonStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: SLATE.slate_50,
+    paddingBottom: 80, // Add padding to prevent content from being hidden behind tab bar
   },
   loadingContainer: {
     flex: 1,

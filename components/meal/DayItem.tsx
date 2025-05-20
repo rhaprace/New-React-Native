@@ -68,6 +68,9 @@ const DayItem: React.FC<DayItemProps> = ({
 
   const dailyTotals = calculateDailyTotals(item);
 
+  // Store the formatted day once to ensure consistency
+  const formattedDay = formatDay(item.day);
+
   return (
     <Animated.View
       entering={FadeInDown.delay(index * 100)}
@@ -75,11 +78,11 @@ const DayItem: React.FC<DayItemProps> = ({
     >
       <TouchableOpacity
         style={styles.dayHeader}
-        onPress={() => onToggleDay(formatDay(item.day))}
+        onPress={() => onToggleDay(formattedDay)}
       >
         <View style={styles.dayHeaderContent}>
           <Text variant="h5" weight="bold" style={styles.dayText}>
-            {formatDay(item.day)}
+            {formattedDay}
           </Text>
           <View style={styles.dailyTotalsContainer}>
             <Text variant="body2" color="secondary">
@@ -102,32 +105,26 @@ const DayItem: React.FC<DayItemProps> = ({
           <FoodListItem
             meal={item.breakfast}
             mealType="Breakfast"
-            onRecommend={() =>
-              onOpenRecommendations(formatDay(item.day), "Breakfast")
-            }
+            onRecommend={() => onOpenRecommendations(formattedDay, "Breakfast")}
             onDeleteMeal={onDeleteMeal}
             onAddToTodaysFood={onAddToTodaysFood}
-            day={formatDay(item.day)}
+            day={formattedDay}
           />
           <FoodListItem
             meal={item.lunch}
             mealType="Lunch"
-            onRecommend={() =>
-              onOpenRecommendations(formatDay(item.day), "Lunch")
-            }
+            onRecommend={() => onOpenRecommendations(formattedDay, "Lunch")}
             onDeleteMeal={onDeleteMeal}
             onAddToTodaysFood={onAddToTodaysFood}
-            day={formatDay(item.day)}
+            day={formattedDay}
           />
           <FoodListItem
             meal={item.dinner}
             mealType="Dinner"
-            onRecommend={() =>
-              onOpenRecommendations(formatDay(item.day), "Dinner")
-            }
+            onRecommend={() => onOpenRecommendations(formattedDay, "Dinner")}
             onDeleteMeal={onDeleteMeal}
             onAddToTodaysFood={onAddToTodaysFood}
-            day={formatDay(item.day)}
+            day={formattedDay}
           />
 
           <View
@@ -137,7 +134,7 @@ const DayItem: React.FC<DayItemProps> = ({
           >
             <Button
               variant="primary"
-              onPress={() => onOpenCustomMealModal(formatDay(item.day))}
+              onPress={() => onOpenCustomMealModal(formattedDay)}
             >
               Add a Custom Meal
             </Button>

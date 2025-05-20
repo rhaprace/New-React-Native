@@ -1,29 +1,29 @@
 import { useState, useEffect, useRef } from "react";
-import { Alert, Platform, Linking } from "react-native";
+import { Alert, Platform } from "react-native";
 import { Accelerometer } from "expo-sensors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
+import { openAppSettings, isExpoGo } from "@/utils/permissionUtils";
 
 const STORAGE_KEY = "atle_step_data";
 
-// Enhanced step detection configuration for maximum sensitivity
-const SAMPLING_RATE = 5; // Accelerometer sampling rate (in ms) - ultra fast for real-time detection
-const STEP_DELAY_MIN = 50; // Minimum time between steps (in ms) - optimized for faster walking (reduced for better sensitivity)
-const STEP_DELAY_MAX = 2000; // Maximum time between steps (in ms) - for very slow walking
-const PEAK_THRESHOLD_INITIAL = 0.8; // Initial threshold for peak detection - lowered for better sensitivity
-const WINDOW_SIZE = 30; // Size of the sliding window for peak detection - increased for better pattern recognition
-const GRAVITY = 9.81; // Earth's gravity in m/s²
+const SAMPLING_RATE = 5;
+const STEP_DELAY_MIN = 50;
+const STEP_DELAY_MAX = 2000;
+const PEAK_THRESHOLD_INITIAL = 0.8;
+const WINDOW_SIZE = 30;
+const GRAVITY = 9.81;
 
-const STRICT_STEP_THRESHOLD = 1.2; // Higher threshold for real steps
-const STRICT_STEP_MIN_DELAY = 300; // ms, minimum time between steps
-const STRICT_STEP_MAX_DELAY = 2000; // ms, max time between steps
-const STRICT_VARIANCE_MIN = 0.05; // Minimum variance for walking
-const STRICT_VARIANCE_MAX = 2.0; // Maximum variance for walking
+const STRICT_STEP_THRESHOLD = 1.2;
+const STRICT_STEP_MIN_DELAY = 300;
+const STRICT_STEP_MAX_DELAY = 2000;
+const STRICT_VARIANCE_MIN = 0.05;
+const STRICT_VARIANCE_MAX = 2.0;
 
-const ANTI_CHEAT_STEP_THRESHOLD = 1.05; // Lower than super strict, but not too low
+const ANTI_CHEAT_STEP_THRESHOLD = 1.05;
 const ANTI_CHEAT_VARIANCE_MIN = 0.02;
 const ANTI_CHEAT_VARIANCE_MAX = 3.0;
-const ANTI_CHEAT_RHYTHM_STD = 350; // ms, allow more natural variation
+const ANTI_CHEAT_RHYTHM_STD = 350;
 
 const SIMPLE_STEP_THRESHOLD = 1.02;
 
@@ -56,7 +56,7 @@ interface StepCounterResult {
 export const useAccelerometerStepCounter = (
   defaultGoal: number = 10000
 ): StepCounterResult => {
-  const [isAvailable, setIsAvailable] = useState<boolean>(true); // Accelerometer is available on most devices
+  const [isAvailable, setIsAvailable] = useState<boolean>(true);
   const [permissionStatus, setPermissionStatus] = useState<
     "unknown" | "granted" | "denied"
   >("unknown");
@@ -68,8 +68,6 @@ export const useAccelerometerStepCounter = (
   const [simulationInterval, setSimulationInterval] = useState<ReturnType<
     typeof setInterval
   > | null>(null);
-
-  // Step detection state
   const accelerometerSubscription = useRef<{ remove: () => void } | null>(null);
   const lastStepTime = useRef<number>(0);
   const lastAcceleration = useRef<{ x: number; y: number; z: number }>({
@@ -79,8 +77,6 @@ export const useAccelerometerStepCounter = (
   });
   const accelerationMagnitude = useRef<number[]>([]);
   const isStepDetectionActive = useRef<boolean>(false);
-
-  // Advanced step detection state
   const accelerationWindow = useRef<
     Array<{ x: number; y: number; z: number; timestamp: number }>
   >([]);
@@ -102,26 +98,16 @@ export const useAccelerometerStepCounter = (
     runningPattern: [],
     calibrated: false,
   });
-
-  // Check if running in Expo Go (using a safer approach to avoid deprecated property)
-  const isExpoGo =
-    Constants.executionEnvironment === "storeClient" ? false : true;
-
-  // Get today's date in YYYY-MM-DD format
   const getTodayString = (): string => {
     const today = new Date();
     return today.toISOString().split("T")[0];
   };
-
-  // Load saved step data
   const loadStepData = async () => {
     try {
       const savedData = await AsyncStorage.getItem(STORAGE_KEY);
       if (savedData) {
         const parsedData: StepData[] = JSON.parse(savedData);
         setHistoryData(parsedData);
-
-        // Find today's data
         const todayString = getTodayString();
         const todayData = parsedData.find((item) => item.date === todayString);
 
@@ -130,7 +116,6 @@ export const useAccelerometerStepCounter = (
           setCurrentSteps(todayData.steps);
           setGoalSteps(todayData.goal);
         } else {
-          // Create today's entry if it doesn't exist
           const newData = [
             ...parsedData,
             { date: todayString, steps: 0, goal: goalSteps },
@@ -139,7 +124,6 @@ export const useAccelerometerStepCounter = (
           saveStepData(newData);
         }
       } else {
-        // Initialize with today's entry
         const initialData = [
           { date: getTodayString(), steps: 0, goal: goalSteps },
         ];
@@ -150,8 +134,6 @@ export const useAccelerometerStepCounter = (
       console.error("Error loading step data:", error);
     }
   };
-
-  // Save step data to AsyncStorage
   const saveStepData = async (data: StepData[]) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -159,36 +141,26 @@ export const useAccelerometerStepCounter = (
       console.error("Error saving step data:", error);
     }
   };
-
-  // Update today's step count
   const updateTodaySteps = (steps: number) => {
     console.log(`updateTodaySteps called with steps: ${steps}`);
 
     const todayString = getTodayString();
 
-    // Check if today's entry exists in history
     const todayExists = historyData.some((item) => item.date === todayString);
 
     let updatedHistory;
     if (todayExists) {
-      // Update existing entry
       updatedHistory = historyData.map((item) =>
         item.date === todayString ? { ...item, steps: steps } : item
       );
     } else {
-      // Create new entry for today
       updatedHistory = [
         ...historyData,
         { date: todayString, steps: steps, goal: goalSteps },
       ];
     }
-
-    // Update state immediately - but don't update currentSteps here
-    // This avoids a circular update that could reset the counter
     setTodaySteps(steps);
     setHistoryData(updatedHistory);
-
-    // Save to AsyncStorage immediately
     try {
       saveStepData(updatedHistory);
     } catch (error) {
@@ -197,8 +169,6 @@ export const useAccelerometerStepCounter = (
 
     console.log(`Updated today's steps to ${steps}`);
   };
-
-  // Set goal steps
   const handleSetGoalSteps = (goal: number) => {
     const todayString = getTodayString();
     const updatedHistory = historyData.map((item) =>
@@ -209,31 +179,16 @@ export const useAccelerometerStepCounter = (
     setHistoryData(updatedHistory);
     saveStepData(updatedHistory);
   };
-
-  // Reset steps for today
   const resetSteps = () => {
     updateTodaySteps(0);
     setCurrentSteps(0);
     lastStepTime.current = 0;
   };
 
-  // Function to open app settings
-  const openAppSettings = () => {
-    if (Platform.OS === "ios") {
-      Linking.openURL("app-settings:");
-    } else {
-      Linking.openSettings();
-    }
-  };
-
-  // Function to start step simulation
   const startStepSimulation = () => {
-    // Clear any existing simulation
     stopStepSimulation();
-
-    // Create a new simulation interval
     const interval = setInterval(() => {
-      const stepIncrement = Math.floor(Math.random() * 5) + 1; // 1-5 steps
+      const stepIncrement = Math.floor(Math.random() * 5) + 1;
       setCurrentSteps((prev) => {
         const newSteps = prev + stepIncrement;
         updateTodaySteps(newSteps);
@@ -242,19 +197,17 @@ export const useAccelerometerStepCounter = (
         );
         return newSteps;
       });
-    }, 3000); // Every 3 seconds
+    }, 3000);
 
     setSimulationInterval(interval);
     setPermissionStatus("granted");
 
-    // Show a message that simulation has started
     Alert.alert(
       "Simulation Started",
       "Step simulation is now running. Steps will be added automatically every few seconds."
     );
   };
 
-  // Function to stop step simulation
   const stopStepSimulation = () => {
     if (simulationInterval) {
       clearInterval(simulationInterval);
@@ -263,47 +216,38 @@ export const useAccelerometerStepCounter = (
     }
   };
 
-  // Get Android version
   const getAndroidVersion = (): number => {
     if (Platform.OS !== "android") return 0;
     return parseInt(Platform.Version.toString(), 10);
   };
 
-  // Enhanced step detection algorithm with real-time processing and improved sensitivity
   const detectStep = (acceleration: { x: number; y: number; z: number }) => {
     const now = Date.now();
 
-    // Add timestamp to acceleration data
     const timestampedAcceleration = {
       ...acceleration,
       timestamp: now,
     };
 
-    // Update acceleration window with new data
     accelerationWindow.current.push(timestampedAcceleration);
 
-    // Keep a sliding window of the most recent acceleration data
     if (accelerationWindow.current.length > WINDOW_SIZE) {
       accelerationWindow.current.shift();
     }
 
-    // Calculate the magnitude of acceleration (total G-force)
     const magnitude = Math.sqrt(
       Math.pow(acceleration.x, 2) +
         Math.pow(acceleration.y, 2) +
         Math.pow(acceleration.z, 2)
     );
 
-    // Store the magnitude for pattern detection
     accelerationMagnitude.current.push(magnitude);
     if (accelerationMagnitude.current.length > WINDOW_SIZE) {
       accelerationMagnitude.current.shift();
     }
 
-    // Update last acceleration
     lastAcceleration.current = acceleration;
 
-    // Detect device position if not already determined
     if (
       devicePosition.current === "unknown" &&
       accelerationWindow.current.length >= WINDOW_SIZE
@@ -311,14 +255,9 @@ export const useAccelerometerStepCounter = (
       detectDevicePosition();
     }
 
-    // Adaptive threshold based on recent motion patterns
     const dynamicThreshold = calculateDynamicThreshold();
 
-    // Lower the threshold slightly for better sensitivity
     const adjustedThreshold = dynamicThreshold * 0.9;
-
-    // Check for a step using our enhanced peak detection algorithm
-    // Pass the current magnitude directly for more accurate real-time detection
     const isStep = detectStepWithPeakAnalysis(
       magnitude,
       now,
@@ -326,24 +265,17 @@ export const useAccelerometerStepCounter = (
     );
 
     if (isStep) {
-      // Use functional state update to ensure we're using the latest state value
-      // This is critical to avoid race conditions with state updates
       setCurrentSteps((prevSteps) => {
         const newSteps = prevSteps + 1;
         console.log(`Incrementing steps from ${prevSteps} to ${newSteps}`);
 
-        // Update today's steps with the new count
-        // We need to call this inside the callback to ensure we use the updated value
         updateTodaySteps(newSteps);
 
-        // Store the time between steps for anti-cheating analysis
         const now = Date.now();
         if (lastStepTime.current > 0) {
           const stepInterval = now - lastStepTime.current;
-          // Only store reasonable step intervals (between 0.3 and 2 seconds)
           if (stepInterval > 300 && stepInterval < 2000) {
             stepFrequency.current.push(stepInterval);
-            // Keep only the last 10 intervals
             if (stepFrequency.current.length > 10) {
               stepFrequency.current.shift();
             }
@@ -353,30 +285,23 @@ export const useAccelerometerStepCounter = (
         return newSteps;
       });
 
-      // Log the step detection for debugging
       console.log(`Step detected! Current count in state: ${currentSteps}`);
-
-      // Detailed logging is now handled in the detectStepWithPeakAnalysis function
       return true;
     }
 
     return false;
   };
 
-  // Balanced anti-cheat step detection
   const detectStepWithPeakAnalysis = (
     magnitude: number,
     timestamp: number,
     threshold: number
   ): boolean => {
-    // Original permissive logic
     if (accelerationMagnitude.current.length < 3) {
-      // Allow step detection with less data
       if (
         magnitude > threshold * 1.2 &&
         timestamp - lastStepTime.current > STEP_DELAY_MIN
       ) {
-        // Simple detection for initial steps
         lastStepTime.current = timestamp;
         return true;
       }
@@ -388,12 +313,8 @@ export const useAccelerometerStepCounter = (
     const avgMagnitude =
       recentMagnitudes.reduce((sum, val) => sum + val, 0) /
       recentMagnitudes.length;
-
-    // Check if we have a significant peak compared to the average
     const isPeak =
       currentValue > avgMagnitude * 1.1 && currentValue > threshold * 0.7;
-
-    // Check for significant movement (acceleration change)
     const prevMagnitude = recentMagnitudes[recentMagnitudes.length - 2] || 0;
     const magnitudeChange = Math.abs(currentValue - prevMagnitude);
     const hasSignificantMovement = magnitudeChange > threshold * 0.25;
@@ -414,7 +335,6 @@ export const useAccelerometerStepCounter = (
     return false;
   };
 
-  // Calculate a dynamic threshold based on recent motion patterns
   const calculateDynamicThreshold = (): number => {
     if (accelerationMagnitude.current.length < WINDOW_SIZE / 2) {
       return PEAK_THRESHOLD_INITIAL;

@@ -116,7 +116,7 @@ export const checkSubscriptionStatus = mutation({
               | "paymaya"
               | "card"
               | undefined,
-            amount: 7500, // ₱75.00 for promo period
+            amount: 25000, // ₱250.00 for promo period
             currency: "PHP",
             status: "completed",
             lastPaymentDate: promoStartDate.toISOString(),
@@ -164,7 +164,7 @@ export const checkSubscriptionStatus = mutation({
                 | "paymaya"
                 | "card"
                 | undefined,
-              amount: 7500, // Still ₱75.00 for remaining promo months
+              amount: 25000, // Still ₱250.00 for remaining promo months
               currency: "PHP",
               status: "completed",
               lastPaymentDate: now.toISOString(),
@@ -191,7 +191,7 @@ export const checkSubscriptionStatus = mutation({
                 | "paymaya"
                 | "card"
                 | undefined,
-              amount: 20000, // ₱200.00 regular price
+              amount: 49900, // ₱499.00 regular price
               currency: "PHP",
               status: "completed",
               lastPaymentDate: now.toISOString(),
@@ -222,7 +222,7 @@ export const checkSubscriptionStatus = mutation({
               | "paymaya"
               | "card"
               | undefined,
-            amount: 20000, // ₱200.00 regular price
+            amount: 49900, // ₱499.00 regular price
             currency: "PHP",
             status: "completed",
             lastPaymentDate: now.toISOString(),

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, ActivityIndicator, RefreshControl } from "react-native";
+import { View, ActivityIndicator, RefreshControl } from "react-native";
 import { COLORS } from "@/constants/theme";
 import { useUser } from "@clerk/clerk-expo";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { StatusBar } from "expo-status-bar";
 import { styles } from "@/styles/workout.styles";
+import { Text } from "@/components/ui";
 import {
   TodaysExercises,
   WeeklyPlan,

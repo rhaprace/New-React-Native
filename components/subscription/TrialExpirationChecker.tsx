@@ -59,7 +59,7 @@ const TrialExpirationChecker: React.FC = () => {
         ) {
           Alert.alert(
             "Trial Ending Soon",
-            `Your trial will end in ${daysRemaining} ${daysRemaining === 1 ? "day" : "days"}. Your subscription will automatically continue at ₱75/month for 3 months, then ₱200/month after that.`,
+            `Your trial will end in ${daysRemaining} ${daysRemaining === 1 ? "day" : "days"}. Your subscription will automatically continue at ₱250/month for 3 months, then ₱499/month after that.`,
             [
               {
                 text: "Change Payment Method",

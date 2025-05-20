@@ -1,5 +1,34 @@
 # AtleTech - Fitness App
 
+![AtleTech Logo](https://example.com/logo.png)
+
+Welcome to AtleTech! This is a fitness application built with React Native and Expo, designed to help you manage your workouts, nutrition, and overall fitness journey.
+
+## Table of Contents
+
+- [AtleTech - Fitness App](#atletech---fitness-app)
+  - [Features](#features)
+  - [Tech Stack](#tech-stack)
+  - [Getting Started](#getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Installation](#installation)
+  - [Project Structure](#project-structure)
+    - [Server-Side Code Separation](#server-side-code-separation)
+  - [Development Resources](#development-resources)
+  - [License](#license)
+
+## Introduction
+
+AtleTech is a fitness application that allows users to track their workouts, plan meals, and manage their fitness journey. It provides a user-friendly interface and integrates with various services for authentication and payments. The app is built using React Native and Expo, making it accessible on both iOS and Android platforms.
+
+![AtleTech Screenshot](https://example.com/screenshot.png)
+
+## Demo
+
+You can view the live demo of the application [here](https://example.com/demo).
+
+## Description
+
 AtleTech is a comprehensive fitness application designed to help users track their workouts, plan meals, and manage their fitness journey.
 
 ## Features

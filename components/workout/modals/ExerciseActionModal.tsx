@@ -73,9 +73,6 @@ const ExerciseActionModal: React.FC<ExerciseActionModalProps> = ({
   // Mutations
   const addExercise = useMutation(api.addOrUpdateExercise.addExercise);
   const upsertExercise = useMutation(api.addOrUpdateExercise.upsertExercise);
-  const deleteExercise = useMutation(
-    api.directDeleteExercise.deleteExerciseById
-  );
 
   // Search in exercises database
   const matchingExercises = useQuery(
@@ -267,28 +264,6 @@ const ExerciseActionModal: React.FC<ExerciseActionModalProps> = ({
       console.error("Cannot delete: No exercise ID provided");
       return;
     }
-
-    try {
-      // Convert the ID to the correct type
-      const exerciseId = exerciseToEdit._id as Id<"exercise">;
-
-      // Call the delete mutation
-      await deleteExercise({
-        exerciseId,
-      });
-
-      resetForm();
-      onClose();
-    } catch (error) {
-      console.error("Error deleting exercise:", error);
-
-      let errorMessage = "Failed to delete exercise. Please try again.";
-      if (error instanceof Error) {
-        errorMessage = `Error: ${error.message}`;
-      }
-
-      Alert.alert("Error", errorMessage);
-    }
   };
 
   const resetForm = () => {
@@ -321,9 +296,9 @@ const ExerciseActionModal: React.FC<ExerciseActionModalProps> = ({
           />
 
           {exerciseName.trim().length >= 3 && !editMode && (
-            <Text variant="body2" color="secondary">
+            <Text style={{ fontSize: 14, color: COLORS.textSecondary }}>
               Exercise type auto-detected:{" "}
-              <Text weight="semibold">
+              <Text style={{ fontWeight: "600" }}>
                 {exerciseType.charAt(0).toUpperCase() + exerciseType.slice(1)}
               </Text>
             </Text>

@@ -1,8 +1,9 @@
 import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, TouchableOpacity } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS } from "@/constants/theme";
 import { styles } from "@/styles/[day].style";
+import { Text } from "@/components/ui";
 
 // Helper function to format time
 export const formatTime = (seconds: number) => {

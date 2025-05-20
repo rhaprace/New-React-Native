@@ -138,7 +138,7 @@ const DiscountModal: React.FC<DiscountModalProps> = ({
               </Text>
               <View style={styles.discountBadge}>
                 <Text variant="caption" weight="bold" color="onPrimary">
-                  62% OFF
+                  50% OFF
                 </Text>
               </View>
             </View>
@@ -149,10 +149,10 @@ const DiscountModal: React.FC<DiscountModalProps> = ({
                 color="secondary"
                 style={{ textDecorationLine: "line-through" }}
               >
-                ₱200.00
+                ₱499.00
               </Text>
               <Text variant="h3" weight="bold" color="primary">
-                ₱75.00
+                ₱250.00
               </Text>
               <Text variant="caption" color="secondary">
                 {showPromoOffer ? "for first 3 months" : "per month"}
@@ -163,7 +163,7 @@ const DiscountModal: React.FC<DiscountModalProps> = ({
                   color="secondary"
                   style={{ marginTop: SPACING.xs, fontStyle: "italic" }}
                 >
-                  Then ₱200.00 per month after promo period
+                  Then ₱499.00 per month after promo period
                 </Text>
               )}
             </View>
@@ -238,7 +238,7 @@ const DiscountModal: React.FC<DiscountModalProps> = ({
               </Text>
               <View style={styles.discountBadge}>
                 <Text variant="caption" weight="bold" color="onPrimary">
-                  75% OFF
+                  55% OFF
                 </Text>
               </View>
             </View>
@@ -249,13 +249,13 @@ const DiscountModal: React.FC<DiscountModalProps> = ({
                 color="secondary"
                 style={{ textDecorationLine: "line-through" }}
               >
-                ₱1,200.00
+                ₱5,988.00
               </Text>
               <Text variant="h3" weight="bold" color="primary">
-                ₱300.00
+                ₱2,700.00
               </Text>
               <Text variant="caption" color="secondary">
-                per year (₱25/month)
+                per year (₱225/month)
               </Text>
             </View>
 

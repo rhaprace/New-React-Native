@@ -5,10 +5,10 @@ import {
   StyleSheet,
   Platform,
   Keyboard,
-  Text,
   TouchableWithoutFeedback,
 } from "react-native";
 import { COLORS, FONT, SPACING, RADIUS } from "@/constants/theme";
+import { Text } from "@/components/ui";
 
 interface OTPInputProps {
   length: number;

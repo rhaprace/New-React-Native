@@ -75,7 +75,7 @@ export const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingBottom: 30,
+    paddingBottom: 100, // Increased padding to account for tab bar
   },
   calorieCard: {
     backgroundColor: COLORS.white,

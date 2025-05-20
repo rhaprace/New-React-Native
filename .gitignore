@@ -45,3 +45,6 @@ app-example
 .convex/auth.config.js
 test-email.js
 services/paymentService.ts
+
+# Local Netlify folder
+.netlify

@@ -21,6 +21,7 @@ import { COLORS } from "@/constants/theme";
 import { styles } from "@/styles/profile.styles";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { cleanupAuthData } from "@/utils/authUtils";
 import {
   calculateBMRMifflinStJeor,
   calculateTDEE,
@@ -166,24 +167,57 @@ const ProfilePage = () => {
 
   const handleSignOut = async () => {
     try {
-      await saveProfile();
+      // Show loading indicator
+      Alert.alert("Signing Out", "Please wait while we sign you out...");
+
+      // 1. Save profile data first
+      try {
+        await saveProfile();
+      } catch (saveErr) {
+        console.error("Error saving profile during sign-out:", saveErr);
+        // Continue with sign-out even if this fails
+      }
+
+      // 2. Clear payment source
       try {
         await clearPaymentSource();
       } catch (clearErr) {
         console.error("Error clearing payment source:", clearErr);
+        // Continue with sign-out even if this fails
       }
-      router.replace("/(auth)/login");
-      setTimeout(async () => {
-        try {
-          await signOut();
-          console.log("User signed out successfully");
-        } catch (signOutErr) {
-          console.error("Error during sign-out:", signOutErr);
-        }
-      }, 500);
+
+      // 3. Clean up auth data (tokens and AsyncStorage)
+      try {
+        await cleanupAuthData();
+      } catch (cleanupErr) {
+        console.error("Error during auth data cleanup:", cleanupErr);
+        // Continue with sign-out even if this fails
+      }
+
+      // 4. Sign out from Clerk - this should clear the auth token
+      try {
+        // Sign out from Clerk
+        await signOut();
+        console.log("User signed out successfully");
+      } catch (signOutErr) {
+        console.error("Error during Clerk sign-out:", signOutErr);
+        // If Clerk sign-out fails, we'll still try to navigate to login
+        // This ensures the user can still "escape" even if sign-out has issues
+      } finally {
+        // 5. Always navigate to login screen after attempting sign-out
+        // Use a small delay to ensure all state updates have propagated
+        setTimeout(() => {
+          router.replace("/(auth)/login");
+        }, 500); // Increased delay to ensure state updates have propagated
+      }
     } catch (err) {
-      console.error("Error during sign-out:", err);
+      console.error("Error during sign-out process:", err);
       Alert.alert("Error", "Failed to sign out. Please try again.");
+
+      // As a last resort, try to navigate to login anyway
+      setTimeout(() => {
+        router.replace("/(auth)/login");
+      }, 1000);
     }
   };
 

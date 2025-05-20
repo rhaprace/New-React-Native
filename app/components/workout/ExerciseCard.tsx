@@ -23,7 +23,11 @@ type ExerciseCardProps = {
   onViewExercise: (exercise: Exercise) => void;
 };
 
-const ExerciseCard = ({ exercise, onStartTimer, onViewExercise }: ExerciseCardProps) => (
+const ExerciseCard = ({
+  exercise,
+  onStartTimer,
+  onViewExercise,
+}: ExerciseCardProps) => (
   <View style={styles.exerciseCard}>
     <View style={styles.exerciseHeader}>
       <Text style={styles.exerciseName}>{exercise.name}</Text>

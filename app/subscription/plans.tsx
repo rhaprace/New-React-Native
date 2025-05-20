@@ -284,7 +284,7 @@ export default function SubscriptionPlans() {
             </View>
 
             <View style={styles.priceContainer}>
-              <Text style={styles.price}>₱200</Text>
+              <Text style={styles.price}>₱499</Text>
               <Text style={styles.billingCycle}>per month</Text>
             </View>
 
@@ -343,7 +343,7 @@ export default function SubscriptionPlans() {
                 variant="primary"
                 size="md"
                 fullWidth
-                onPress={() => handleSelectPlan("Monthly", 20000)}
+                onPress={() => handleSelectPlan("Monthly", 49900)}
                 loading={loading}
               >
                 Subscribe Now
@@ -354,14 +354,14 @@ export default function SubscriptionPlans() {
             <View style={styles.planHeader}>
               <Text style={styles.planTitle}>Yearly Plan</Text>
               <View style={styles.savingsBadge}>
-                <Text style={styles.savingsText}>Save 50%</Text>
+                <Text style={styles.savingsText}>Save 10%</Text>
               </View>
             </View>
 
             <View style={styles.priceContainer}>
-              <Text style={styles.price}>₱1,200.00</Text>
+              <Text style={styles.price}>₱5,389.00</Text>
               <Text style={styles.billingCycle}>per year</Text>
-              <Text style={styles.regularPrice}>₱2,400.00 regular price</Text>
+              <Text style={styles.regularPrice}>₱5,988.00 regular price</Text>
             </View>
 
             <View style={styles.featuresContainer}>
@@ -401,7 +401,7 @@ export default function SubscriptionPlans() {
               variant="primary"
               size="md"
               fullWidth
-              onPress={() => handleSelectPlan("Yearly", 120000, true, 240000)}
+              onPress={() => handleSelectPlan("Yearly", 538900, true, 598800)}
               loading={loading}
             >
               Subscribe Now
