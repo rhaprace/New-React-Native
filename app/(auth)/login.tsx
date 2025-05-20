@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { FontAwesome5, Ionicons } from "@expo/vector-icons";
-import { useUser } from "@clerk/clerk-expo";
+import { useUser, useClerk } from "@clerk/clerk-expo";
 import { useSSO } from "@clerk/clerk-expo";
 import { useMutation } from "convex/react";
 import { useRouter } from "expo-router";
@@ -18,40 +18,45 @@ import { styles } from "@/styles/auth.styles";
 export default function Login() {
   const { startSSOFlow } = useSSO();
   const { user, isLoaded } = useUser();
+  const clerk = useClerk();
   const router = useRouter();
   const createUser = useMutation(api.users.createUser);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-
   const handleGoogleSignIn = async () => {
     try {
       setIsLoggingIn(true);
+
+      // If already signed in, check verification status
+      if (isLoaded && user) {
+        const primaryEmail = user.primaryEmailAddress;
+        if (primaryEmail?.verification?.status === "verified") {
+          // If email is verified, go directly to main app
+          router.replace("/(tabs)");
+          return;
+        }
+        // If not verified or new sign in needed, sign out
+        await clerk.signOut();
+      }
+
       const { createdSessionId, setActive } = await startSSOFlow({
         strategy: "oauth_google",
       });
 
       if (setActive && createdSessionId) {
         await setActive({ session: createdSessionId });
-        setTimeout(() => {
-          try {
-            console.log(
-              "Login successful, manually navigating to verify-email"
-            );
-            router.replace("/(auth)/verify-email");
-          } catch (navError) {
-            console.error("Navigation error after login:", navError);
-            // Fallback navigation
-            setTimeout(() => {
-              try {
-                router.push("/(auth)/verify-email");
-              } catch (fallbackError) {
-                console.error("Fallback navigation failed:", fallbackError);
-              }
-            }, 500);
-          }
-        }, 1000);
+        const newUser = await clerk.user;
+        const primaryEmail = newUser?.primaryEmailAddress;
+
+        // Check if the new session's email is verified
+        if (primaryEmail?.verification?.status === "verified") {
+          router.replace("/(tabs)");
+        } else {
+          router.replace("/(auth)/verify-email");
+        }
       }
     } catch (error) {
       console.error("Login error:", error);
+    } finally {
       setIsLoggingIn(false);
     }
   };
