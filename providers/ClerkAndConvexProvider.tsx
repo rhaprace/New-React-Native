@@ -45,6 +45,22 @@ if (!publishableKey) {
   console.error("Missing Clerk Publishable Key in environment configuration");
 }
 
+// Log environment variables for debugging (without revealing full values)
+console.log("Environment variables status:");
+console.log(
+  `- CONVEX_URL: ${Config.convexUrl ? "Set (starts with: " + Config.convexUrl.substring(0, 10) + "...)" : "Not set"}`
+);
+console.log(
+  `- CLERK_PUBLISHABLE_KEY: ${publishableKey ? "Set (starts with: " + publishableKey.substring(0, 10) + "...)" : "Not set"}`
+);
+
+// Validate that the Clerk key is properly formatted
+if (publishableKey && !publishableKey.startsWith("pk_")) {
+  console.error(
+    "Invalid Clerk Publishable Key format. Key should start with 'pk_'"
+  );
+}
+
 export default function ClerkAndConvexProvider({
   children,
 }: {

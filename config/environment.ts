@@ -33,13 +33,14 @@ const getEnvironmentVariable = (name: string): string => {
     return (window as any)[name];
   }
 
-  // Finally, check for hardcoded values in Constants.manifest
+  // Check for values in Constants.expoConfig as a fallback
+  // This replaces the deprecated Constants.manifest
   if (
-    Constants.manifest &&
-    Constants.manifest.extra &&
-    name in Constants.manifest.extra
+    Constants.expoConfig &&
+    Constants.expoConfig.extra &&
+    name in Constants.expoConfig.extra
   ) {
-    return Constants.manifest.extra[name];
+    return Constants.expoConfig.extra[name];
   }
 
   return "";
@@ -47,25 +48,62 @@ const getEnvironmentVariable = (name: string): string => {
 
 // Get Convex URL with fallback for Netlify builds
 const getConvexUrl = (): string => {
-  const url = getEnvironmentVariable("EXPO_PUBLIC_CONVEX_URL");
+  let url = getEnvironmentVariable("EXPO_PUBLIC_CONVEX_URL");
+
+  // Check if we're in a browser environment and try to get from window
+  if ((!url || url.trim() === "") && typeof window !== "undefined") {
+    // Try to get from window object (set by environment.js)
+    url = (window as any).EXPO_PUBLIC_CONVEX_URL || "";
+  }
 
   // Validate that we have a proper URL
   if (!url || url.trim() === "") {
-    console.warn("EXPO_PUBLIC_CONVEX_URL is not set or empty");
+    console.warn("⚠️ EXPO_PUBLIC_CONVEX_URL is not set or empty");
     // Return a placeholder URL for build to succeed (will be replaced at runtime)
+    return "https://example-convex-url.convex.cloud";
+  }
+
+  // Validate URL format
+  try {
+    new URL(url);
+  } catch (e) {
+    console.error("⚠️ Invalid CONVEX_URL format:", url);
     return "https://example-convex-url.convex.cloud";
   }
 
   return url;
 };
 
+// Get Clerk publishable key with validation
+const getClerkPublishableKey = (): string => {
+  let key = getEnvironmentVariable("EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY");
+
+  // Check if we're in a browser environment and try to get from window
+  if ((!key || key.trim() === "") && typeof window !== "undefined") {
+    // Try to get from window object (set by environment.js)
+    key = (window as any).EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY || "";
+  }
+
+  if (!key || key.trim() === "") {
+    console.warn("⚠️ EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is not set or empty");
+    return "pk_placeholder_clerk_key";
+  }
+
+  // Validate key format
+  if (!key.startsWith("pk_")) {
+    console.warn(
+      "⚠️ Invalid Clerk publishable key format. Should start with 'pk_'"
+    );
+  }
+
+  return key;
+};
+
 // Export configuration
 export const Config = {
   environment: getEnvironment(),
   convexUrl: getConvexUrl(),
-  clerkPublishableKey:
-    getEnvironmentVariable("EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY") ||
-    "placeholder_clerk_key",
+  clerkPublishableKey: getClerkPublishableKey(),
   paymongoSecretKey:
     getEnvironmentVariable("EXPO_PUBLIC_PAYMONGO_SECRET_KEY") || "",
 };
