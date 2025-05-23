@@ -20,6 +20,9 @@ try {
   const isValidClerkKey = Boolean(window.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY && window.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY.startsWith("pk_"));
   console.log("- CLERK_KEY valid: " + (isValidClerkKey ? "✅" : "❌"));
 
+  // Print the actual Clerk key for debugging (first 20 chars)
+  console.log("DEBUG - Clerk key in browser: " + window.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY.substring(0, 20) + "...");
+
   // Show warnings for invalid values
   if (!isValidConvexUrl) {
     console.warn("⚠️ WARNING: EXPO_PUBLIC_CONVEX_URL is not a valid URL: " + window.EXPO_PUBLIC_CONVEX_URL);

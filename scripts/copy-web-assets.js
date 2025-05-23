@@ -75,15 +75,32 @@ function copyWebAssets() {
   const envDest = path.join(distDir, "environment.js");
 
   if (fs.existsSync(envSource)) {
-    copyFile(envSource, envDest);
+    // Read the source file to preserve exact formatting
+    try {
+      const envContent = fs.readFileSync(envSource, "utf8");
+      fs.writeFileSync(envDest, envContent);
+      console.log(
+        `Copied environment.js with exact content: ${envSource} -> ${envDest}`
+      );
+
+      // Log the first few lines for debugging
+      const contentPreview = envContent.split("\n").slice(0, 6).join("\n");
+      console.log(`Environment.js content preview:\n${contentPreview}\n...`);
+    } catch (error) {
+      console.error(`Error copying environment.js: ${error.message}`);
+    }
   } else {
     console.warn(`Environment file not found: ${envSource}`);
     // Create a minimal environment.js file with placeholders
     try {
+      // Use JSON.stringify for the Clerk key to ensure proper escaping
+      const clerkKey =
+        process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ||
+        "placeholder_clerk_key";
       const content = `
 // Fallback environment variables
 window.EXPO_PUBLIC_CONVEX_URL = window.EXPO_PUBLIC_CONVEX_URL || "https://example-convex-url.convex.cloud";
-window.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = window.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY || "placeholder_clerk_key";
+window.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = ${JSON.stringify(clerkKey)};
 window.EXPO_PUBLIC_PAYMONGO_SECRET_KEY = window.EXPO_PUBLIC_PAYMONGO_SECRET_KEY || "";
 `;
       fs.writeFileSync(envDest, content);

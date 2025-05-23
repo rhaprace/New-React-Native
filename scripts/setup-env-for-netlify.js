@@ -42,11 +42,19 @@ const setupEnvironmentFile = () => {
   }
 
   // Ensure Clerk publishable key is properly formatted
+  // Only add prefix if the key doesn't start with pk_ and is not empty
   if (clerkPublishableKey && !clerkPublishableKey.startsWith("pk_")) {
     console.warn(
       "⚠️ EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY does not start with pk_, adding prefix"
     );
     clerkPublishableKey = "pk_" + clerkPublishableKey;
+  }
+
+  // Log the actual Clerk key for debugging (first 20 chars)
+  if (clerkPublishableKey) {
+    console.log(
+      `DEBUG: Clerk key being used: ${clerkPublishableKey.substring(0, 20)}...`
+    );
   }
 
   // Remove any quotes that might be surrounding the values
@@ -98,11 +106,12 @@ const setupEnvironmentFile = () => {
   }
 
   // Create content for the environment.js file
+  // Use JSON.stringify for the Clerk key to ensure proper escaping
   const content = `
 // This file is generated during the build process
 // It contains environment variables needed for the app to run
 window.EXPO_PUBLIC_CONVEX_URL = "${convexUrl}";
-window.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = "${clerkPublishableKey}";
+window.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = ${JSON.stringify(clerkPublishableKey)};
 window.EXPO_PUBLIC_PAYMONGO_SECRET_KEY = "${paymongoSecretKey}";
 
 // Log environment variables status on page load
@@ -119,6 +128,9 @@ try {
   // Validate Clerk key
   const isValidClerkKey = Boolean(window.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY && window.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY.startsWith("pk_"));
   console.log("- CLERK_KEY valid: " + (isValidClerkKey ? "✅" : "❌"));
+
+  // Print the actual Clerk key for debugging (first 20 chars)
+  console.log("DEBUG - Clerk key in browser: " + window.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY.substring(0, 20) + "...");
 
   // Show warnings for invalid values
   if (!isValidConvexUrl) {
