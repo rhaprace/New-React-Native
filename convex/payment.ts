@@ -574,7 +574,9 @@ export const createCustomer = action({
   },
   handler: async (ctx, args) => {
     try {
-      let PAYMONGO_SECRET_KEY = process.env.PAYMONGO_SECRET_KEY;
+      let PAYMONGO_SECRET_KEY =
+        process.env.EXPO_PUBLIC_PAYMONGO_SECRET_KEY ||
+        process.env.PAYMONGO_SECRET_KEY;
 
       if (!PAYMONGO_SECRET_KEY) {
         throw new Error("PayMongo secret key is not configured");
@@ -591,39 +593,36 @@ export const createCustomer = action({
 
       // Log the customer creation attempt with identifiers
       console.log(
-        `Creating customer with email: ${email || "not provided"}, phone: ${phone || "not provided"}`
+        `Creating customer with email: ${email || "not provided"}, phone: ${phone || "not provided"}, name: ${name || "not provided"}`
       );
 
-      // Normalize phone number for consistency
-      let normalizedPhone = phone;
-      if (phone) {
-        // Apply the same formatting logic used in findCustomerByIdentifier
-        normalizedPhone = phone.replace(/\D/g, "");
-        if (!normalizedPhone.startsWith("+")) {
-          if (
-            normalizedPhone.startsWith("63") &&
-            normalizedPhone.length >= 11
-          ) {
-            normalizedPhone = "+" + normalizedPhone;
-          } else if (normalizedPhone.length === 10) {
-            normalizedPhone = "+63" + normalizedPhone;
-          } else if (
-            normalizedPhone.startsWith("9") &&
-            normalizedPhone.length === 10
-          ) {
-            normalizedPhone = "+63" + normalizedPhone;
-          } else if (
-            normalizedPhone.startsWith("09") &&
-            normalizedPhone.length === 11
-          ) {
-            normalizedPhone = "+63" + normalizedPhone.substring(1);
-          } else if (normalizedPhone.length > 10) {
-            normalizedPhone = "+" + normalizedPhone;
-          }
+      // Normalize phone number for consistency - this is critical for GCash
+      let normalizedPhone = phone || "";
+      if (normalizedPhone) {
+        // Remove all non-digit characters
+        normalizedPhone = normalizedPhone.replace(/\D/g, "");
+
+        // Format to E.164 format for Philippines (+63...)
+        if (normalizedPhone.startsWith("63") && normalizedPhone.length >= 11) {
+          normalizedPhone = "+" + normalizedPhone;
+        } else if (
+          normalizedPhone.startsWith("9") &&
+          normalizedPhone.length === 10
+        ) {
+          normalizedPhone = "+63" + normalizedPhone;
+        } else if (
+          normalizedPhone.startsWith("09") &&
+          normalizedPhone.length === 11
+        ) {
+          normalizedPhone = "+63" + normalizedPhone.substring(1);
+        } else if (normalizedPhone.length === 10) {
+          normalizedPhone = "+63" + normalizedPhone;
+        } else if (!normalizedPhone.startsWith("+")) {
+          normalizedPhone = "+63" + normalizedPhone;
         }
       }
 
-      // Split the name into first and last name
+      // Split the name into first and last name - PayMongo requires these separately
       let firstName = "User";
       let lastName = "Account";
 
@@ -632,6 +631,23 @@ export const createCustomer = action({
         firstName = nameParts[0] || "User";
         lastName =
           nameParts.length > 1 ? nameParts.slice(1).join(" ") : "Account";
+      }
+
+      // Log the normalized values
+      console.log(
+        `Normalized values - Phone: ${normalizedPhone}, First Name: ${firstName}, Last Name: ${lastName}`
+      );
+
+      // Ensure we have valid values for required fields
+      const validEmail = email || `user_${Date.now()}@atletech-app.com`;
+      const validPhone =
+        normalizedPhone || `+63999${Date.now().toString().slice(-7)}`;
+
+      // Make sure phone number is in correct format
+      if (!validPhone.startsWith("+63")) {
+        throw new Error(
+          "Phone number must be in E.164 format starting with +63 for Philippines"
+        );
       }
 
       // First, try to find if the customer already exists
@@ -648,35 +664,67 @@ export const createCustomer = action({
       }
 
       // If customer not found, create a new one
-      console.log("Creating new customer");
+      console.log("Creating new customer with simplified approach");
+
+      // Create a simplified request with only the required fields
+      const customerData = {
+        data: {
+          attributes: {
+            email: email || `user_${Date.now()}@atletech-app.com`, // Add valid email if not provided
+            phone: validPhone, // Use our validated phone number
+            first_name: firstName,
+            last_name: lastName,
+            default_device: defaultDevice || "phone", // Always use "phone" for GCash
+          },
+        },
+      };
+
+      // Log the request payload for debugging
+      console.log("Customer creation payload:", JSON.stringify(customerData));
+
       const response = await fetch(`${PAYMONGO_API_URL}/customers`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Basic ${encodeBasicAuth(PAYMONGO_SECRET_KEY)}`,
         },
-        body: JSON.stringify({
-          data: {
-            attributes: {
-              email: email || `dummy_${Date.now()}@atletech-system.com`, // Add dummy email if not provided
-              phone: normalizedPhone || "+639999999999", // Add dummy phone if not provided
-              first_name: firstName,
-              last_name: lastName,
-              default_device: defaultDevice || "phone",
-            },
-          },
-        }),
+        body: JSON.stringify(customerData),
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("PayMongo API error:", errorText);
+        let errorText = await response.text();
+        let errorData = null;
 
-        let errorData: any = null;
         try {
           errorData = JSON.parse(errorText);
+          console.error(
+            "PayMongo API error:",
+            JSON.stringify(errorData, null, 2)
+          );
+
+          // Extract detailed error message
+          if (errorData && errorData.errors && errorData.errors.length > 0) {
+            const error = errorData.errors[0];
+            const detailedError = `PayMongo API error: ${error.code} - ${error.detail}`;
+            console.error(detailedError);
+
+            // If the error is about resource_exists, try to find the existing customer
+            if (error.code === "resource_exists") {
+              console.log("Customer already exists, trying to find it");
+
+              // Try to extract the existing customer ID from the error message if possible
+              const match = error.detail.match(/ID: ([a-zA-Z0-9_]+)/);
+              if (match && match[1]) {
+                console.log("Found customer ID in error message:", match[1]);
+                return match[1];
+              }
+            }
+
+            throw new Error(detailedError);
+          }
         } catch (parseError) {
           console.error("Error parsing PayMongo error response:", parseError);
+          console.error("Raw error text:", errorText);
         }
 
         // Handle resource_exists error by searching for the customer again
@@ -1082,8 +1130,14 @@ export const createCustomer = action({
         );
       }
 
-      const data = await response.json();
-      return data.data.id;
+      try {
+        const data = await response.json();
+        console.log("Successfully created customer:", data.data.id);
+        return data.data.id;
+      } catch (jsonError) {
+        console.error("Error parsing successful response:", jsonError);
+        throw new Error("Failed to parse customer creation response");
+      }
     } catch (error) {
       console.error("Error in createCustomer:", error);
       throw error;
