@@ -22,14 +22,36 @@ const validateUrl = (url: string): boolean => {
 // Create the Convex client with validation
 let convex: ConvexReactClient;
 try {
-  if (!validateUrl(Config.convexUrl)) {
-    console.error("Invalid Convex URL format:", Config.convexUrl);
+  // Get Convex URL from different sources
+  let convexUrl = Config.convexUrl;
+
+  // Try to get from window object if in browser and not set
+  if (
+    typeof window !== "undefined" &&
+    (!convexUrl || !validateUrl(convexUrl))
+  ) {
+    const windowUrl = (window as any).EXPO_PUBLIC_CONVEX_URL;
+    if (windowUrl && validateUrl(windowUrl)) {
+      console.log("Using Convex URL from window object");
+      convexUrl = windowUrl;
+    }
+  }
+
+  // Final validation
+  if (!validateUrl(convexUrl)) {
+    console.error("Invalid Convex URL format:", convexUrl);
     throw new Error("Invalid Convex URL format");
   }
 
-  convex = new ConvexReactClient(Config.convexUrl, {
+  // Create client with validated URL
+  convex = new ConvexReactClient(convexUrl, {
     unsavedChangesWarning: false,
   });
+
+  console.log(
+    "Successfully created Convex client with URL starting with:",
+    convexUrl.substring(0, 10) + "..."
+  );
 } catch (error) {
   console.error("Error initializing Convex client:", error);
   // Create a fallback client for build to succeed
@@ -39,10 +61,19 @@ try {
   });
 }
 
-// Validate Clerk publishable key
-const publishableKey = Config.clerkPublishableKey;
-if (!publishableKey) {
-  console.error("Missing Clerk Publishable Key in environment configuration");
+// Get and validate Clerk publishable key
+let publishableKey = Config.clerkPublishableKey;
+
+// Try to get from window object if in browser and not set or invalid
+if (
+  typeof window !== "undefined" &&
+  (!publishableKey || !publishableKey.startsWith("pk_"))
+) {
+  const windowKey = (window as any).EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  if (windowKey && windowKey.startsWith("pk_")) {
+    console.log("Using Clerk publishable key from window object");
+    publishableKey = windowKey;
+  }
 }
 
 // Log environment variables for debugging (without revealing full values)
@@ -54,11 +85,20 @@ console.log(
   `- CLERK_PUBLISHABLE_KEY: ${publishableKey ? "Set (starts with: " + publishableKey.substring(0, 10) + "...)" : "Not set"}`
 );
 
+// Final validation and warnings
+if (!publishableKey) {
+  console.error("Missing Clerk Publishable Key in environment configuration");
+  // Provide a fallback for build to succeed
+  publishableKey = "pk_test_placeholder_key";
+}
+
 // Validate that the Clerk key is properly formatted
-if (publishableKey && !publishableKey.startsWith("pk_")) {
+if (!publishableKey.startsWith("pk_")) {
   console.error(
     "Invalid Clerk Publishable Key format. Key should start with 'pk_'"
   );
+  // Provide a fallback for build to succeed
+  publishableKey = "pk_test_placeholder_key";
 }
 
 export default function ClerkAndConvexProvider({

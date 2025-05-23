@@ -24,11 +24,41 @@ const isValidClerkKey = (key) => {
 const setupEnvironmentFile = () => {
   const envFilePath = path.join(__dirname, "..", "web", "environment.js");
 
-  // Get environment variables from process.env
-  const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL || "";
-  const clerkPublishableKey =
-    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY || "";
-  const paymongoSecretKey = process.env.EXPO_PUBLIC_PAYMONGO_SECRET_KEY || "";
+  // Get environment variables from process.env and clean them
+  let convexUrl = (process.env.EXPO_PUBLIC_CONVEX_URL || "").trim();
+  let clerkPublishableKey = (
+    process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY || ""
+  ).trim();
+  let paymongoSecretKey = (
+    process.env.EXPO_PUBLIC_PAYMONGO_SECRET_KEY || ""
+  ).trim();
+
+  // Remove any quotes that might be surrounding the values
+  convexUrl = convexUrl.replace(/^["'](.*)["']$/, "$1");
+  clerkPublishableKey = clerkPublishableKey.replace(/^["'](.*)["']$/, "$1");
+  paymongoSecretKey = paymongoSecretKey.replace(/^["'](.*)["']$/, "$1");
+
+  // Log raw values for debugging (without revealing full values)
+  console.log("Raw environment variables (first 10 chars):");
+  console.log(`- EXPO_PUBLIC_CONVEX_URL raw: ${convexUrl.substring(0, 10)}...`);
+  console.log(
+    `- EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY raw: ${clerkPublishableKey.substring(0, 10)}...`
+  );
+
+  // Provide fallbacks for development/testing if needed
+  if (!convexUrl) {
+    console.warn(
+      "⚠️ EXPO_PUBLIC_CONVEX_URL is empty, using fallback for build to succeed"
+    );
+    convexUrl = "https://example-convex-url.convex.cloud";
+  }
+
+  if (!clerkPublishableKey) {
+    console.warn(
+      "⚠️ EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is empty, using fallback for build to succeed"
+    );
+    clerkPublishableKey = "pk_test_placeholder_key";
+  }
 
   // Validate environment variables
   const isConvexUrlValid = isValidUrl(convexUrl);
@@ -46,6 +76,28 @@ window.EXPO_PUBLIC_PAYMONGO_SECRET_KEY = "${paymongoSecretKey}";
 console.log("Environment variables loaded from environment.js:");
 console.log("- EXPO_PUBLIC_CONVEX_URL: ${convexUrl ? "Set (starts with: " + convexUrl.substring(0, 10) + "...)" : "Not set"}");
 console.log("- EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${clerkPublishableKey ? "Set (starts with: " + clerkPublishableKey.substring(0, 10) + "...)" : "Not set"}");
+
+// Validate environment variables on page load
+try {
+  // Validate Convex URL
+  const isValidConvexUrl = Boolean(window.EXPO_PUBLIC_CONVEX_URL && new URL(window.EXPO_PUBLIC_CONVEX_URL));
+  console.log("- CONVEX_URL valid: " + (isValidConvexUrl ? "✅" : "❌"));
+
+  // Validate Clerk key
+  const isValidClerkKey = Boolean(window.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY && window.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY.startsWith("pk_"));
+  console.log("- CLERK_KEY valid: " + (isValidClerkKey ? "✅" : "❌"));
+
+  // Show warnings for invalid values
+  if (!isValidConvexUrl) {
+    console.warn("⚠️ WARNING: EXPO_PUBLIC_CONVEX_URL is not a valid URL: " + window.EXPO_PUBLIC_CONVEX_URL);
+  }
+
+  if (!isValidClerkKey) {
+    console.warn("⚠️ WARNING: EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is not valid (should start with pk_): " + window.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY);
+  }
+} catch (error) {
+  console.error("Error validating environment variables:", error);
+}
 `;
 
   // Ensure the web directory exists
