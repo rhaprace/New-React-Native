@@ -131,49 +131,109 @@ export const createCustomer = async (
   }
 ): Promise<string> => {
   try {
-    // Try the new fixed version first
-    try {
-      console.log("Trying to create customer with fixed implementation");
-      const customerId = await convex.action(api.payment.createCustomer, {
-        email: params.email,
-        name: params.name,
-        phone: params.phone,
-        defaultDevice: params.defaultDevice,
-      });
-      console.log(
-        "Successfully created customer with fixed implementation:",
-        customerId
-      );
-      return customerId;
-    } catch (fixError) {
-      console.error(
-        "Error using fixed createCustomer, falling back to original:",
-        fixError
-      );
+    // Format the phone number properly before sending
+    let formattedPhone = params.phone || "";
+    if (formattedPhone) {
+      // Remove all non-digit characters
+      formattedPhone = formattedPhone.replace(/\D/g, "");
 
-      // Fall back to the original version if the new one fails
-      const customerId = await convex.action(api.payment.createCustomer, {
-        email: params.email,
-        name: params.name,
-        phone: params.phone,
-        defaultDevice: params.defaultDevice,
-      });
-      return customerId;
+      // Format to E.164 format for Philippines
+      if (formattedPhone.startsWith("0")) {
+        formattedPhone = "+63" + formattedPhone.substring(1);
+      } else if (
+        formattedPhone.startsWith("9") &&
+        formattedPhone.length === 10
+      ) {
+        formattedPhone = "+63" + formattedPhone;
+      } else if (!formattedPhone.startsWith("+")) {
+        formattedPhone = "+63" + formattedPhone;
+      }
     }
+
+    // Split the name into first and last name if provided
+    let firstName = "";
+    let lastName = "";
+    if (params.name) {
+      const nameParts = params.name.split(" ");
+      firstName = nameParts[0] || "";
+      lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
+    }
+
+    console.log("Trying to create customer with direct API call");
+
+    // Make a direct API call to PayMongo instead of using the Convex action
+    const PAYMONGO_API_URL = "https://api.paymongo.com/v1";
+
+    // Get the PayMongo secret key from environment variables
+    // For client-side code, we need to use the Config object
+    const Config = require("../config/environment").default;
+    const PAYMONGO_SECRET_KEY = Config.paymongoSecretKey;
+
+    console.log(
+      "Using PayMongo secret key (first 4 chars):",
+      PAYMONGO_SECRET_KEY
+        ? PAYMONGO_SECRET_KEY.substring(0, 4) + "..."
+        : "not found"
+    );
+
+    if (!PAYMONGO_SECRET_KEY) {
+      throw new Error("PayMongo secret key is not configured");
+    }
+
+    // Create a simplified request with only the required fields
+    const customerData = {
+      data: {
+        attributes: {
+          email: params.email || `user_${Date.now()}@atletech-app.com`,
+          phone: formattedPhone || undefined,
+          first_name: firstName || "User",
+          last_name: lastName || "Account",
+          default_device: params.defaultDevice || "phone",
+        },
+      },
+    };
+
+    // Log the request payload for debugging
+    console.log("Customer creation payload:", JSON.stringify(customerData));
+
+    // Make the API request
+    const response = await fetch(`${PAYMONGO_API_URL}/customers`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Basic ${Buffer.from(`${PAYMONGO_SECRET_KEY}:`).toString("base64")}`,
+      },
+      body: JSON.stringify(customerData),
+    });
+
+    // Handle the response
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("PayMongo API error:", errorText);
+
+      try {
+        const errorData = JSON.parse(errorText);
+        if (errorData.errors && errorData.errors.length > 0) {
+          const error = errorData.errors[0];
+          throw new Error(
+            `PayMongo API error: ${error.code} - ${error.detail}`
+          );
+        }
+      } catch (parseError) {
+        console.error("Error parsing error response:", parseError);
+      }
+
+      throw new Error(
+        `Failed to create customer: ${response.status} ${response.statusText}`
+      );
+    }
+
+    // Parse successful response
+    const data = await response.json();
+    console.log("Successfully created customer:", data.data.id);
+    return data.data.id;
   } catch (error) {
     console.error("Error creating customer:", error);
-
-    // If the customer already exists, return a dummy ID to allow the flow to continue
-    if (
-      error instanceof Error &&
-      error.message &&
-      error.message.includes("resource_exists") &&
-      error.message.includes("email")
-    ) {
-      console.log("Customer already exists, returning dummy ID");
-      return "cus_existing";
-    }
-
     throw error;
   }
 };
@@ -198,23 +258,14 @@ export const linkGCashAccount = async (
   warning?: string;
 }> => {
   try {
-    // Format phone number to E.164 format
-    let formattedPhone = params.phone;
-    if (!formattedPhone.startsWith("+")) {
-      // If phone starts with 0, replace with +63
-      if (formattedPhone.startsWith("0")) {
-        formattedPhone = "+63" + formattedPhone.substring(1);
-      } else if (!formattedPhone.startsWith("+63")) {
-        formattedPhone = "+63" + formattedPhone;
-      }
-    }
+    console.log("Linking GCash account with params:", JSON.stringify(params));
 
-    // Create or get customer
+    // Create the customer directly with first_name and last_name
     const customerId = await createCustomer(convex, {
       name: `${params.firstName} ${params.lastName}`,
-      phone: formattedPhone,
+      phone: params.phone, // Phone formatting is handled in createCustomer
       email: params.email,
-      defaultDevice: "phone", // Changed from "mobile" to "phone"
+      defaultDevice: "phone", // Always use "phone" for GCash
     });
 
     // Create payment method
