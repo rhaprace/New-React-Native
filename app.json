@@ -29,7 +29,7 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png",
       "publicPath": "/",
-      "template": "./app.html",
+      "template": "./web/index.html",
       "build": {
         "babel": {
           "include": ["@expo/vector-icons"]
@@ -41,7 +41,8 @@
       "lang": "en",
       "themeColor": "#ffffff",
       "backgroundColor": "#ffffff",
-      "orientation": "portrait"
+      "orientation": "portrait",
+      "entryPoint": "./web-index.js"
     },
     "plugins": [
       "expo-router",

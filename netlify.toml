@@ -1,7 +1,7 @@
 
 [build]
-  command = "npx expo export:web"
-  publish = "web-build"
+  command = "npm run netlify:build"
+  publish = "dist"
 
 [[redirects]]
   from = "/*"
