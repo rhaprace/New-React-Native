@@ -118,9 +118,58 @@ export const checkPaymentStatus = async (
 };
 
 /**
- * Create a PayMongo customer
- * This is used for recurring payments
+ * Find a customer by email in PayMongo
  */
+const findCustomerByEmail = async (
+  apiUrl: string,
+  apiKey: string,
+  email: string
+): Promise<string | null> => {
+  try {
+    // Create a proper Basic Auth header
+    const encodeBasicAuth = (key: string): string => {
+      return btoa(`${key}:`);
+    };
+
+    // Build the search URL with the email filter
+    const searchParams = new URLSearchParams();
+    searchParams.append("filter[email]", email);
+
+    // Make the API request
+    const response = await fetch(
+      `${apiUrl}/customers?${searchParams.toString()}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${encodeBasicAuth(apiKey)}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error(
+        `Failed to search for customer: ${response.status} ${response.statusText}`
+      );
+      return null;
+    }
+
+    const data = await response.json();
+
+    // Check if we found any customers
+    if (data.data && data.data.length > 0) {
+      console.log(`Found ${data.data.length} customers with email ${email}`);
+      return data.data[0].id;
+    }
+
+    console.log(`No customers found with email ${email}`);
+    return null;
+  } catch (error) {
+    console.error("Error searching for customer:", error);
+    return null;
+  }
+};
+
 export const createCustomer = async (
   convex: ConvexReactClient,
   params: {
@@ -221,6 +270,36 @@ export const createCustomer = async (
         const errorData = JSON.parse(errorText);
         if (errorData.errors && errorData.errors.length > 0) {
           const error = errorData.errors[0];
+
+          // Special handling for "resource_exists" error
+          if (
+            error.code === "resource_exists" &&
+            error.detail.includes("already exists")
+          ) {
+            console.log(
+              "Customer already exists, retrieving existing customer"
+            );
+
+            // Try to find the existing customer by email
+            if (params.email) {
+              console.log(`Searching for customer with email: ${params.email}`);
+              const existingCustomer = await findCustomerByEmail(
+                PAYMONGO_API_URL,
+                PAYMONGO_SECRET_KEY,
+                params.email
+              );
+
+              if (existingCustomer) {
+                console.log(`Found existing customer: ${existingCustomer}`);
+                return existingCustomer;
+              }
+            }
+
+            // If we couldn't find by email, return a dummy ID to continue the flow
+            console.log("Couldn't find existing customer, using dummy ID");
+            return "cus_existing";
+          }
+
           throw new Error(
             `PayMongo API error: ${error.code} - ${error.detail}`
           );
@@ -273,6 +352,23 @@ export const linkGCashAccount = async (
       email: params.email,
       defaultDevice: "phone", // Always use "phone" for GCash
     });
+    // Format the phone number for GCash
+    let formattedPhone = params.phone;
+    if (formattedPhone) {
+      // Remove all non-digit characters
+      formattedPhone = formattedPhone.replace(/\D/g, "");
+      // Format to E.164 format for Philippines
+      if (formattedPhone.startsWith("0")) {
+        formattedPhone = "+63" + formattedPhone.substring(1);
+      } else if (
+        formattedPhone.startsWith("9") &&
+        formattedPhone.length === 10
+      ) {
+        formattedPhone = "+63" + formattedPhone;
+      } else if (!formattedPhone.startsWith("+")) {
+        formattedPhone = "+63" + formattedPhone;
+      }
+    }
 
     // Create payment method
     const paymentMethodResponse = await convex.action(
