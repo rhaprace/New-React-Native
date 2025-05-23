@@ -137,9 +137,9 @@ export default function Verify() {
       <View style={localStyles.content}>
         <Text style={localStyles.title}>Verify Your Email</Text>
         <Text style={localStyles.subtitle}>
-          We've sent a 6-digit verification code to{" "}
+          We've sent a 6-digit verification code to
           <Text style={localStyles.emailText}>{email}</Text>
-        </Text>{" "}
+        </Text>
         <View style={localStyles.otpContainer}>
           <OTPInput
             length={6}
