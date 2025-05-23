@@ -1,7 +1,7 @@
 
 [build]
-  command = "npx expo export"
-  publish = "dist"
+  command = "npx expo export:web"
+  publish = "web-build"
 
 [[redirects]]
   from = "/*"
@@ -11,6 +11,9 @@
 
 [build.environment]
   NODE_VERSION = "18"
+  EXPO_PUBLIC_CONVEX_URL = "${EXPO_PUBLIC_CONVEX_URL}"
+  EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = "${EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY}"
+  EXPO_PUBLIC_PAYMONGO_SECRET_KEY = "${EXPO_PUBLIC_PAYMONGO_SECRET_KEY}"
 
 [[headers]]
   for = "/*"

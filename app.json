@@ -34,7 +34,14 @@
         "babel": {
           "include": ["@expo/vector-icons"]
         }
-      }
+      },
+      "name": "AtleTech",
+      "shortName": "AtleTech",
+      "description": "Fitness tracking application",
+      "lang": "en",
+      "themeColor": "#ffffff",
+      "backgroundColor": "#ffffff",
+      "orientation": "portrait"
     },
     "plugins": [
       "expo-router",

@@ -25,16 +25,12 @@ export default function Login() {
   const handleGoogleSignIn = async () => {
     try {
       setIsLoggingIn(true);
-
-      // If already signed in, check verification status
       if (isLoaded && user) {
         const primaryEmail = user.primaryEmailAddress;
         if (primaryEmail?.verification?.status === "verified") {
-          // If email is verified, go directly to main app
           router.replace("/(tabs)");
           return;
         }
-        // If not verified or new sign in needed, sign out
         await clerk.signOut();
       }
 
@@ -46,8 +42,6 @@ export default function Login() {
         await setActive({ session: createdSessionId });
         const newUser = await clerk.user;
         const primaryEmail = newUser?.primaryEmailAddress;
-
-        // Check if the new session's email is verified
         if (primaryEmail?.verification?.status === "verified") {
           router.replace("/(tabs)");
         } else {

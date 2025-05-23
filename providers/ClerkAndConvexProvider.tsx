@@ -5,6 +5,7 @@ import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import Config from "../config/environment";
 import { useEffect } from "react";
 import * as SplashScreen from "expo-splash-screen";
+import { Platform } from "react-native";
 
 // Use the environment-specific configuration
 const convex = new ConvexReactClient(Config.convexUrl, {
@@ -22,27 +23,33 @@ export default function ClerkAndConvexProvider({
 }) {
   // Timeout to force hide splash screen in case of network issues
   useEffect(() => {
-    const forceHideSplashTimeout = setTimeout(() => {
-      console.log("Forcing splash screen hide after timeout");
-      SplashScreen.hideAsync().catch((e) => {
-        console.warn("Error force hiding splash screen:", e);
-      });
+    // Only apply this timeout on native platforms
+    if (Platform.OS !== "web") {
+      const forceHideSplashTimeout = setTimeout(() => {
+        console.log("Forcing splash screen hide after timeout");
+        SplashScreen.hideAsync().catch((e) => {
+          console.warn("Error force hiding splash screen:", e);
+        });
 
-      // Force navigation to login screen if we're timing out
-      try {
-        const { router } = require("expo-router");
-        if (router && typeof router.replace === "function") {
-          router.replace("/(auth)/login");
-          console.log("Forced navigation to login screen after timeout");
-        } else {
-          console.error("Router or replace function not available");
+        // Force navigation to login screen if we're timing out
+        try {
+          const { router } = require("expo-router");
+          if (router && typeof router.replace === "function") {
+            router.replace("/(auth)/login");
+            console.log("Forced navigation to login screen after timeout");
+          } else {
+            console.error("Router or replace function not available");
+          }
+        } catch (navError) {
+          console.error("Failed to force navigation:", navError);
         }
-      } catch (navError) {
-        console.error("Failed to force navigation:", navError);
-      }
-    }, 8000); // 8 seconds timeout
+      }, 8000); // 8 seconds timeout
 
-    return () => clearTimeout(forceHideSplashTimeout);
+      return () => clearTimeout(forceHideSplashTimeout);
+    } else {
+      // Web-specific initialization
+      console.log("Initializing web platform in ClerkAndConvexProvider");
+    }
   }, []);
 
   // Error handler is defined but not used - removed to avoid warnings

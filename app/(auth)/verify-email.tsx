@@ -280,7 +280,6 @@ export default function VerifyEmail() {
         router.replace("/(auth)/login");
       } catch (error) {
         console.error("Navigation error in verify-email:", error);
-        // Fallback navigation
         setTimeout(() => {
           try {
             router.push("/(auth)/login");
