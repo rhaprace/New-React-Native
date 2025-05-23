@@ -1,5 +1,17 @@
 // Environment configuration utility
 import Constants from "expo-constants";
+// Import hardcoded values if available
+let EnvironmentValues: Record<string, string> = {};
+try {
+  // Try to import the hardcoded values
+  const values = require("./environment-values").default;
+  if (values) {
+    EnvironmentValues = values;
+    console.log("Using hardcoded environment values");
+  }
+} catch (error) {
+  console.log("No hardcoded environment values found, using standard methods");
+}
 
 // Define environment types
 type Environment = "development" | "staging" | "production";
@@ -18,7 +30,17 @@ const getEnvironment = (): Environment => {
 
 // Get environment-specific variables
 const getEnvironmentVariable = (name: string): string => {
-  // First check for Expo constants (which includes environment variables in Expo Go)
+  // First check for hardcoded values (for Netlify builds)
+  if (EnvironmentValues && name in EnvironmentValues) {
+    return EnvironmentValues[name];
+  }
+
+  // Then check for window object (for browser environment)
+  if (typeof window !== "undefined" && (window as any)[name]) {
+    return (window as any)[name];
+  }
+
+  // Then check for Expo constants (which includes environment variables in Expo Go)
   if (Constants.expoConfig?.extra && name in Constants.expoConfig.extra) {
     return Constants.expoConfig.extra[name];
   }
@@ -28,13 +50,7 @@ const getEnvironmentVariable = (name: string): string => {
     return process.env[name] as string;
   }
 
-  // Fallback to checking global scope for variables (sometimes needed for web)
-  if (typeof window !== "undefined" && (window as any)[name]) {
-    return (window as any)[name];
-  }
-
   // Check for values in Constants.expoConfig as a fallback
-  // This replaces the deprecated Constants.manifest
   if (
     Constants.expoConfig &&
     Constants.expoConfig.extra &&

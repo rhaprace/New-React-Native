@@ -7,6 +7,23 @@ import { useEffect } from "react";
 import * as SplashScreen from "expo-splash-screen";
 import { Platform } from "react-native";
 
+// Try to get environment values directly from window object for web builds
+let directConvexUrl = "";
+let directClerkKey = "";
+
+if (typeof window !== "undefined") {
+  directConvexUrl = (window as any).EXPO_PUBLIC_CONVEX_URL || "";
+  directClerkKey = (window as any).EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY || "";
+
+  if (directConvexUrl) {
+    console.log("Found direct Convex URL from window object");
+  }
+
+  if (directClerkKey) {
+    console.log("Found direct Clerk key from window object");
+  }
+}
+
 // Validate the Convex URL
 const validateUrl = (url: string): boolean => {
   try {
@@ -22,19 +39,14 @@ const validateUrl = (url: string): boolean => {
 // Create the Convex client with validation
 let convex: ConvexReactClient;
 try {
-  // Get Convex URL from different sources
-  let convexUrl = Config.convexUrl;
+  // Prioritize direct values from window for web builds
+  let convexUrl = directConvexUrl || Config.convexUrl;
 
-  // Try to get from window object if in browser and not set
-  if (
-    typeof window !== "undefined" &&
-    (!convexUrl || !validateUrl(convexUrl))
-  ) {
-    const windowUrl = (window as any).EXPO_PUBLIC_CONVEX_URL;
-    if (windowUrl && validateUrl(windowUrl)) {
-      console.log("Using Convex URL from window object");
-      convexUrl = windowUrl;
-    }
+  // Log which source we're using
+  if (directConvexUrl && validateUrl(directConvexUrl)) {
+    console.log("Using direct Convex URL from window object");
+  } else if (Config.convexUrl && validateUrl(Config.convexUrl)) {
+    console.log("Using Convex URL from Config");
   }
 
   // Final validation
@@ -62,18 +74,17 @@ try {
 }
 
 // Get and validate Clerk publishable key
-let publishableKey = Config.clerkPublishableKey;
+// Prioritize direct values from window for web builds
+let publishableKey = directClerkKey || Config.clerkPublishableKey;
 
-// Try to get from window object if in browser and not set or invalid
-if (
-  typeof window !== "undefined" &&
-  (!publishableKey || !publishableKey.startsWith("pk_"))
+// Log which source we're using
+if (directClerkKey && directClerkKey.startsWith("pk_")) {
+  console.log("Using direct Clerk publishable key from window object");
+} else if (
+  Config.clerkPublishableKey &&
+  Config.clerkPublishableKey.startsWith("pk_")
 ) {
-  const windowKey = (window as any).EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
-  if (windowKey && windowKey.startsWith("pk_")) {
-    console.log("Using Clerk publishable key from window object");
-    publishableKey = windowKey;
-  }
+  console.log("Using Clerk publishable key from Config");
 }
 
 // Log environment variables for debugging (without revealing full values)

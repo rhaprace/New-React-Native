@@ -12,7 +12,8 @@
     "web:serve": "npx serve web-build",
     "setup-env": "node ./scripts/setup-env-for-netlify.js",
     "create-env-file": "node ./scripts/create-env-file.js",
-    "netlify:build": "node ./scripts/create-env-file.js && node ./scripts/setup-env-for-netlify.js && NODE_OPTIONS=--openssl-legacy-provider expo export --platform web && node ./scripts/copy-web-assets.js",
+    "inject-env": "node ./scripts/inject-env-variables.js",
+    "netlify:build": "node ./scripts/inject-env-variables.js && NODE_OPTIONS=--openssl-legacy-provider expo export --platform web && node ./scripts/copy-web-assets.js",
     "test": "jest --watchAll",
     "lint": "expo lint"
   },
