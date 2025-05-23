@@ -196,12 +196,18 @@ export const createCustomer = async (
     // Log the request payload for debugging
     console.log("Customer creation payload:", JSON.stringify(customerData));
 
-    // Make the API request
+    // Create a proper Basic Auth header
+    // The format is "Basic " + base64(apiKey + ":")
+    const encodeBasicAuth = (apiKey: string): string => {
+      return btoa(`${apiKey}:`);
+    };
+
+    // Make the API request with Basic Authentication
     const response = await fetch(`${PAYMONGO_API_URL}/customers`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Basic ${Buffer.from(`${PAYMONGO_SECRET_KEY}:`).toString("base64")}`,
+        Authorization: `Basic ${encodeBasicAuth(PAYMONGO_SECRET_KEY)}`,
       },
       body: JSON.stringify(customerData),
     });
