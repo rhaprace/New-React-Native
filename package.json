@@ -10,7 +10,8 @@
     "web": "expo start --web",
     "web:build": "expo export --platform web && node ./scripts/copy-web-assets.js",
     "web:serve": "npx serve web-build",
-    "netlify:build": "NODE_OPTIONS=--openssl-legacy-provider expo export --platform web && node ./scripts/copy-web-assets.js",
+    "setup-env": "node ./scripts/setup-env-for-netlify.js",
+    "netlify:build": "node ./scripts/setup-env-for-netlify.js && NODE_OPTIONS=--openssl-legacy-provider expo export --platform web && node ./scripts/copy-web-assets.js",
     "test": "jest --watchAll",
     "lint": "expo lint"
   },

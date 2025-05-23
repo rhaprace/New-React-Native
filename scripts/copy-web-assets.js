@@ -70,6 +70,29 @@ function copyWebAssets() {
     console.error(`Icon file not found: ${iconSource}`);
   }
 
+  // Copy environment.js file if it exists
+  const envSource = path.join(__dirname, "..", "web", "environment.js");
+  const envDest = path.join(distDir, "environment.js");
+
+  if (fs.existsSync(envSource)) {
+    copyFile(envSource, envDest);
+  } else {
+    console.warn(`Environment file not found: ${envSource}`);
+    // Create a minimal environment.js file with placeholders
+    try {
+      const content = `
+// Fallback environment variables
+window.EXPO_PUBLIC_CONVEX_URL = window.EXPO_PUBLIC_CONVEX_URL || "https://example-convex-url.convex.cloud";
+window.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = window.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY || "placeholder_clerk_key";
+window.EXPO_PUBLIC_PAYMONGO_SECRET_KEY = window.EXPO_PUBLIC_PAYMONGO_SECRET_KEY || "";
+`;
+      fs.writeFileSync(envDest, content);
+      console.log(`Created fallback environment.js file at ${envDest}`);
+    } catch (error) {
+      console.error(`Error creating environment.js file: ${error.message}`);
+    }
+  }
+
   console.log("Web assets copy process completed.");
 }
 

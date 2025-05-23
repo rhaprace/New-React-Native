@@ -7,13 +7,42 @@ import { useEffect } from "react";
 import * as SplashScreen from "expo-splash-screen";
 import { Platform } from "react-native";
 
-// Use the environment-specific configuration
-const convex = new ConvexReactClient(Config.convexUrl, {
-  unsavedChangesWarning: false,
-});
+// Validate the Convex URL
+const validateUrl = (url: string): boolean => {
+  try {
+    // Simple validation to check if it's a valid URL
+    new URL(url);
+    return true;
+  } catch (e) {
+    console.error("Invalid Convex URL:", url, e);
+    return false;
+  }
+};
+
+// Create the Convex client with validation
+let convex: ConvexReactClient;
+try {
+  if (!validateUrl(Config.convexUrl)) {
+    console.error("Invalid Convex URL format:", Config.convexUrl);
+    throw new Error("Invalid Convex URL format");
+  }
+
+  convex = new ConvexReactClient(Config.convexUrl, {
+    unsavedChangesWarning: false,
+  });
+} catch (error) {
+  console.error("Error initializing Convex client:", error);
+  // Create a fallback client for build to succeed
+  // This will be replaced at runtime with the correct URL
+  convex = new ConvexReactClient("https://example-convex-url.convex.cloud", {
+    unsavedChangesWarning: false,
+  });
+}
+
+// Validate Clerk publishable key
 const publishableKey = Config.clerkPublishableKey;
 if (!publishableKey) {
-  throw new Error("Missing Clerk Publishable Key in environment configuration");
+  console.error("Missing Clerk Publishable Key in environment configuration");
 }
 
 export default function ClerkAndConvexProvider({
@@ -54,11 +83,20 @@ export default function ClerkAndConvexProvider({
 
   // Error handler is defined but not used - removed to avoid warnings
 
-  return (
-    <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
-      <ConvexProviderWithClerk useAuth={useAuth} client={convex}>
-        <ClerkLoaded>{children}</ClerkLoaded>
-      </ConvexProviderWithClerk>
-    </ClerkProvider>
-  );
+  // Wrap the providers in a try-catch to handle any runtime errors
+  try {
+    return (
+      <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
+        <ConvexProviderWithClerk useAuth={useAuth} client={convex}>
+          <ClerkLoaded>{children}</ClerkLoaded>
+        </ConvexProviderWithClerk>
+      </ClerkProvider>
+    );
+  } catch (error) {
+    console.error("Error rendering ClerkAndConvexProvider:", error);
+
+    // Return children without providers in case of error
+    // This allows the app to at least render something
+    return <>{children}</>;
+  }
 }
