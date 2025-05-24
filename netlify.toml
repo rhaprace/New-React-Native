@@ -11,12 +11,6 @@
 
 [build.environment]
   NODE_VERSION = "18"
-  # These variables will be replaced by Netlify's environment variables
-  # Make sure to set these in your Netlify dashboard with proper values
-  # The values should be properly formatted (Convex URL should be a valid URL, Clerk key should start with pk_)
-  EXPO_PUBLIC_CONVEX_URL = "${EXPO_PUBLIC_CONVEX_URL}"
-  EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = "${EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY}"
-  EXPO_PUBLIC_PAYMONGO_SECRET_KEY = "${EXPO_PUBLIC_PAYMONGO_SECRET_KEY}"
 
 [[headers]]
   for = "/*"

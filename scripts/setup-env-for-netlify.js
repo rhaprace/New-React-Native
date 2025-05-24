@@ -4,47 +4,36 @@ const path = require("path");
 
 console.log("Setting up environment variables for Netlify build...");
 
-// Validate URL format
-const isValidUrl = (url) => {
-  try {
-    new URL(url);
-    return true;
-  } catch (e) {
-    return false;
-  }
+// Get environment variables with validation
+const getValidatedEnvVars = () => {
+  const vars = {
+    EXPO_PUBLIC_CONVEX_URL: process.env.EXPO_PUBLIC_CONVEX_URL,
+    EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:
+      process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY,
+    EXPO_PUBLIC_PAYMONGO_SECRET_KEY:
+      process.env.EXPO_PUBLIC_PAYMONGO_SECRET_KEY,
+  };
+
+  // Log the values we got (safely)
+  console.log("Raw environment variables:");
+  Object.entries(vars).forEach(([key, value]) => {
+    console.log(`- ${key}: ${value ? "✅ Set" : "❌ Not set"}`);
+  });
+
+  return vars;
 };
 
-// Validate Clerk publishable key format
-const isValidClerkKey = (key) => {
-  return key && key.startsWith("pk_");
-};
-
-// Create a simple environment.js file that will be included in the build
-// This file will contain the environment variables needed for the app to run
+// Create the environment.js file for the web build
 const setupEnvironmentFile = () => {
   const envFilePath = path.join(__dirname, "..", "web", "environment.js");
+  const vars = getValidatedEnvVars();
 
-  // Get environment variables from process.env and clean them
-  let convexUrl = (process.env.EXPO_PUBLIC_CONVEX_URL || "").trim();
-  let clerkPublishableKey = (process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY || "").trim();
-  let paymongoSecretKey = (process.env.EXPO_PUBLIC_PAYMONGO_SECRET_KEY || "").trim();
-
-  // Remove any quotes that might be surrounding the values
-  convexUrl = convexUrl.replace(/^["'](.*)["']$/, "$1");
-  clerkPublishableKey = clerkPublishableKey.replace(/^["'](.*)["']$/, "$1");
-  paymongoSecretKey = paymongoSecretKey.replace(/^["'](.*)["']$/, "$1");
-
-  // Log raw values for debugging (without revealing full values)
-  console.log("Raw environment variables (first 10 chars):");
-  console.log(`- EXPO_PUBLIC_CONVEX_URL raw: ${convexUrl.substring(0, 10)}...`);
-  console.log(`- EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY raw: ${clerkPublishableKey.substring(0, 10)}...`);
-
-  // Create the environment.js content
+  // Create the environment.js content with direct values
   const envFileContent = `// This file is generated during the build process
 // It contains environment variables needed for the app to run
-window.EXPO_PUBLIC_CONVEX_URL = "${convexUrl}";
-window.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = "${clerkPublishableKey}";
-window.EXPO_PUBLIC_PAYMONGO_SECRET_KEY = "${paymongoSecretKey}";
+window.EXPO_PUBLIC_CONVEX_URL = "${vars.EXPO_PUBLIC_CONVEX_URL || ""}";
+window.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = "${vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY || ""}";
+window.EXPO_PUBLIC_PAYMONGO_SECRET_KEY = "${vars.EXPO_PUBLIC_PAYMONGO_SECRET_KEY || ""}";
 `;
 
   // Write the file
@@ -53,17 +42,23 @@ window.EXPO_PUBLIC_PAYMONGO_SECRET_KEY = "${paymongoSecretKey}";
 
   // Log environment variables status
   console.log("Environment variables status:");
-  console.log(`- EXPO_PUBLIC_CONVEX_URL: ${convexUrl ? `Set (starts with: ${convexUrl.substring(0, 10)}...)` : "Not set"} ${convexUrl ? "✅" : "⚠️"}`);
-  console.log(`- EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${clerkPublishableKey ? `Set (starts with: ${clerkPublishableKey.substring(0, 10)}...)` : "Not set"} ${clerkPublishableKey ? "✅" : "⚠️"}`);
-  console.log(`- EXPO_PUBLIC_PAYMONGO_SECRET_KEY: ${paymongoSecretKey ? "Set" : "Not set"}`);
+  console.log(
+    `- EXPO_PUBLIC_CONVEX_URL: ${vars.EXPO_PUBLIC_CONVEX_URL ? "Set ✅" : "Not set ❌"}`
+  );
+  console.log(
+    `- EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ? "Set ✅" : "Not set ❌"}`
+  );
+  console.log(
+    `- EXPO_PUBLIC_PAYMONGO_SECRET_KEY: ${vars.EXPO_PUBLIC_PAYMONGO_SECRET_KEY ? "Set ✅" : "Not set ❌"}`
+  );
 
-  return {
-    convexUrl,
-    clerkPublishableKey,
-    paymongoSecretKey,
-  };
+  // Validate values
+  if (!vars.EXPO_PUBLIC_CONVEX_URL || !vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+    console.error("❌ Required environment variables are missing!");
+    process.exit(1); // Exit with error
+  }
 };
 
 // Run the setup
-const envVars = setupEnvironmentFile();
+setupEnvironmentFile();
 console.log("Environment setup completed.");
