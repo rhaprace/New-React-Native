@@ -10,7 +10,8 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.atletech.app"
+      "bundleIdentifier": "com.atletech.app",
+      "icon": "./assets/images/icon.png"
     },
     "android": {
       "package": "com.atletech.app",
@@ -42,7 +43,21 @@
       "themeColor": "#ffffff",
       "backgroundColor": "#ffffff",
       "orientation": "portrait",
-      "entryPoint": "./web-index.js"
+      "entryPoint": "./web-index.js",
+      "manifest": {
+        "icons": [
+          {
+            "src": "./assets/images/icon.png",
+            "sizes": "192x192",
+            "type": "image/png"
+          },
+          {
+            "src": "./assets/images/icon.png",
+            "sizes": "512x512",
+            "type": "image/png"
+          }
+        ]
+      }
     },
     "plugins": [
       "expo-router",
