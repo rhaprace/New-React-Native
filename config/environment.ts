@@ -7,7 +7,7 @@ try {
   const values = require("./environment-values").default;
   if (values) {
     EnvironmentValues = values;
-    console.log("Using hardcoded environment values");
+    console.log("✅ Using hardcoded environment values");
   }
 } catch (error) {
   console.log("No hardcoded environment values found, using standard methods");
@@ -98,11 +98,39 @@ const getClerkPublishableKey = (): string => {
   if ((!key || key.trim() === "") && typeof window !== "undefined") {
     // Try to get from window object (set by environment.js)
     key = (window as any).EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY || "";
+
+    if (key) {
+      console.log(
+        "🔑 Found Clerk key from window object:",
+        key.substring(0, 15) + "..."
+      );
+    }
   }
 
+  // Enhanced debugging
+  console.log("🔍 Debug - Clerk key sources:");
+  console.log(
+    "  - From environment variable:",
+    getEnvironmentVariable("EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY") ? "✅" : "❌"
+  );
+  console.log(
+    "  - From window object:",
+    typeof window !== "undefined" &&
+      (window as any).EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
+      ? "✅"
+      : "❌"
+  );
+  console.log(
+    "  - Final key starts with pk_:",
+    key?.startsWith("pk_") ? "✅" : "❌"
+  );
+
   if (!key || key.trim() === "") {
-    console.warn("⚠️ EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is not set or empty");
-    return "pk_placeholder_clerk_key";
+    console.error(
+      "❌ EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is not set or empty - using placeholder"
+    );
+    // Instead of placeholder, let's use the direct key from .env.local as fallback
+    return "pk_test_aW50aW1hdGUtbWFuYXRlZS05NS5jbGVyay5hY2NvdW50cy5kZXYk";
   }
 
   // Validate key format
@@ -110,6 +138,8 @@ const getClerkPublishableKey = (): string => {
     console.warn(
       "⚠️ Invalid Clerk publishable key format. Should start with 'pk_'"
     );
+    // Return the direct key as fallback
+    return "pk_test_aW50aW1hdGUtbWFuYXRlZS05NS5jbGVyay5hY2NvdW50cy5kZXYk";
   }
 
   return key;

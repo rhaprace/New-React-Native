@@ -2,28 +2,28 @@
   "cli": {
     "version": ">= 5.9.1"
   },
-  "build": {
-    "development": {
+  "build": {    "development": {
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_CONVEX_URL": "your_development_convex_url",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "your_development_clerk_key",
-        "EXPO_PUBLIC_PAYMONGO_SECRET_KEY": "your_development_paymongo_key"
+        "EXPO_PUBLIC_CONVEX_URL": "https://savory-coyote-898.convex.cloud",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_aW50aW1hdGUtbWFuYXRlZS05NS5jbGVyay5hY2NvdW50cy5kZXYk",
+        "EXPO_PUBLIC_PAYMONGO_SECRET_KEY": "sk_test_7BM4269dfvua3CRVz6n39qVB"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_CONVEX_URL": "your_staging_convex_url",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "your_staging_clerk_key",
-        "EXPO_PUBLIC_PAYMONGO_SECRET_KEY": "your_staging_paymongo_key"
+        "EXPO_PUBLIC_CONVEX_URL": "https://savory-coyote-898.convex.cloud",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_aW50aW1hdGUtbWFuYXRlZS05NS5jbGVyay5hY2NvdW50cy5kZXYk",
+        "EXPO_PUBLIC_PAYMONGO_SECRET_KEY": "sk_test_7BM4269dfvua3CRVz6n39qVB"
       }
-    },    "production": {
+    },
+    "production": {
       "env": {
-        "EXPO_PUBLIC_CONVEX_URL": "https://your-actual-convex-deployment-url.convex.cloud",
-        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_live_your_actual_clerk_key",
-        "EXPO_PUBLIC_PAYMONGO_SECRET_KEY": "pk_live_your_actual_paymongo_key"
+        "EXPO_PUBLIC_CONVEX_URL": "https://savory-coyote-898.convex.cloud",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_aW50aW1hdGUtbWFuYXRlZS05NS5jbGVyay5hY2NvdW50cy5kZXYk",
+        "EXPO_PUBLIC_PAYMONGO_SECRET_KEY": "sk_test_7BM4269dfvua3CRVz6n39qVB"
       }
     }
   },

@@ -11,6 +11,10 @@
 
 [build.environment]
   NODE_VERSION = "18"
+  # Add your environment variables here for Netlify deployment
+  EXPO_PUBLIC_CONVEX_URL = "https://savory-coyote-898.convex.cloud"
+  EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_aW50aW1hdGUtbWFuYXRlZS05NS5jbGVyay5hY2NvdW50cy5kZXYk"
+  EXPO_PUBLIC_PAYMONGO_SECRET_KEY = "sk_test_7BM4269dfvua3CRVz6n39qVB"
 
 [[headers]]
   for = "/*"
